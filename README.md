@@ -11,16 +11,29 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 **Funcionalidades principales:**
 
 - Registro e inicio de sesión de usuarios
+- Recuperación de contraseña por email con código de verificación de 6 dígitos
 - Catálogo de instalaciones deportivas con navegación a mapas
 - Reserva de pistas con disponibilidad en tiempo real por día y hora
 - Tienda de productos con carrito, filtros por categoría y selección de talla/color
+- Badge "Sin stock" en productos agotados con botón de añadir desactivado
+- Productos favoritos guardados localmente
 - Historial de compras con gestión de devoluciones
 - Pasarela de pago (tarjeta de crédito y Bizum)
 - Perfil de usuario con edición de datos y foto
-- Asistente virtual con respuestas automáticas
+- Asistente virtual con respuestas automáticas y fallback offline
 - Minijuego integrado mediante WebView
 - Tema oscuro y claro
 - Panel de administración con CRUD completo de usuarios, productos e instalaciones
+- Dashboard de administración con métricas en tiempo real
+
+**Notificaciones por email:**
+
+- Bienvenida al registrarse
+- Confirmación de reserva de pista
+- Cancelación de reserva
+- Confirmación de compra con desglose de productos
+- Confirmación de devolución con importe a reembolsar
+- Código de verificación para recuperación de contraseña
 
 ---
 
@@ -109,9 +122,9 @@ cd backend
 npm install
 ```
 
-### 4. Configurar la base de datos
+### 4. Configurar la base de datos y el email
 
-Asegúrate de tener MySQL corriendo y crea un archivo `.env` dentro de `backend/` con las siguientes variables:
+Crea un archivo `.env` dentro de `backend/` con las siguientes variables:
 
 ```env
 DB_HOST=localhost
@@ -119,13 +132,20 @@ DB_USER=root
 DB_PASSWORD=root
 DB_NAME=sportspace_db
 PORT=3000
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=tu_correo@gmail.com
+EMAIL_PASS=tu_contraseña_de_aplicacion
 ```
+
+> Para el envío de emails con Gmail necesitas una **contraseña de aplicación**: activa la verificación en 2 pasos en tu cuenta de Google y genera una en *Seguridad → Contraseñas de aplicaciones*.
 
 La base de datos y las tablas se crean automáticamente al arrancar el servidor por primera vez.
 
 ### 5. Configurar la IP del servidor (dispositivo físico)
 
-Si usas un dispositivo físico en lugar de un emulador, edita `src/config/serverConfig.ts` y reemplaza la IP en `development_network.url` con la IP local de tu máquina.
+Si usas un dispositivo físico en lugar de un emulador, edita `src/config/serverConfig.ts` y reemplaza la IP en `development_network.url` con la IP local de tu máquina. Asegúrate de que el móvil y el PC estén en la misma red WiFi.
 
 ---
 
