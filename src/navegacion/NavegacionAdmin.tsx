@@ -7,6 +7,7 @@ import AdminUsuarios from '../pantallas/admin/AdminUsuarios';
 import AdminProductos from '../pantallas/admin/AdminProductos';
 import AdminInstalaciones from '../pantallas/admin/AdminInstalaciones';
 import AdminAjustes from '../pantallas/admin/AdminAjustes';
+import AdminDashboard from '../pantallas/admin/AdminDashboard';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -22,6 +23,7 @@ function AdminTabs() {
 				tabBarActiveTintColor: colores.primario,
 				tabBarInactiveTintColor: colores.textoSecundario,
 				tabBarIcon: ({ color, size }) => {
+					if (route.name === 'Dashboard') return <Ionicons name="stats-chart" size={size} color={color} />;
 					if (route.name === 'Usuarios') return <FontAwesome5 name="users" size={size} color={color} />;
 					if (route.name === 'Productos') return <MaterialIcons name="storefront" size={size} color={color} />;
 					if (route.name === 'Instalaciones') return <Ionicons name="business" size={size} color={color} />;
@@ -29,6 +31,7 @@ function AdminTabs() {
 				},
 			})}
 		>
+			<Tab.Screen name="Dashboard" component={AdminDashboard} />
 			<Tab.Screen name="Usuarios" component={AdminUsuarios} />
 			<Tab.Screen name="Productos" component={AdminProductos} />
 			<Tab.Screen name="Instalaciones" component={AdminInstalaciones} />

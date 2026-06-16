@@ -116,6 +116,38 @@ async function initDB() {
             FOREIGN KEY(producto_id) REFERENCES productos(id) ON DELETE CASCADE
         )`);
 
+        // 6. Tabla Recuperaciones: Códigos temporales para recuperar contraseña
+        await pool.query(`CREATE TABLE IF NOT EXISTS recuperaciones (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            email VARCHAR(255),
+            codigo VARCHAR(6),
+            expira DATETIME,
+            usado TINYINT DEFAULT 0
+        )`);
+
+        // 7. Tabla Valoraciones: Puntuaciones y comentarios de productos
+        await pool.query(`CREATE TABLE IF NOT EXISTS valoraciones (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            usuario_id INT,
+            producto_id INT,
+            puntuacion INT,
+            comentario TEXT,
+            fecha VARCHAR(50),
+            UNIQUE KEY unica_valoracion (usuario_id, producto_id),
+            FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+            FOREIGN KEY(producto_id) REFERENCES productos(id) ON DELETE CASCADE
+        )`);
+
+        // 8. Tabla Favoritos: Productos guardados por cada usuario
+        await pool.query(`CREATE TABLE IF NOT EXISTS favoritos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            usuario_id INT,
+            producto_id INT,
+            UNIQUE KEY unico_favorito (usuario_id, producto_id),
+            FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+            FOREIGN KEY(producto_id) REFERENCES productos(id) ON DELETE CASCADE
+        )`);
+
         // --- INSERCIÓN DE DATOS INICIALES (Solo si las tablas están vacías) ---
 
         // Usuarios por defecto (Test y Admin)

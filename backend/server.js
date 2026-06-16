@@ -1,9 +1,16 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { initDB, getPool } = require('./database');
-const { enviarConfirmacionReserva, enviarBienvenida } = require('./emailService');
+const {
+    enviarConfirmacionReserva,
+    enviarBienvenida,
+    enviarCancelacionReserva,
+    enviarConfirmacionCompra,
+    enviarConfirmacionDevolucion,
+    enviarRecuperacionContrasena
+} = require('./emailService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -222,17 +229,41 @@ app.put('/api/reservas/:id', async (req, res) => {
 app.delete('/api/reservas/:id', async (req, res) => {
     try {
         const pool = getPool();
+        const [reservaRows] = await pool.query(
+            'SELECT r.*, u.email, u.nombre FROM reservas r LEFT JOIN usuarios u ON r.usuario_id = u.id WHERE r.id = ?',
+            [req.params.id]
+        );
         await pool.query('DELETE FROM reservas WHERE id = ?', [req.params.id]);
+        if (reservaRows.length > 0 && reservaRows[0].email) {
+            const r = reservaRows[0];
+            enviarCancelacionReserva(r.email, {
+                nombre: r.nombre, deporte: r.deporte, pista: r.pista, fecha: r.fecha, hora: r.hora
+            }).catch(e => console.log('Error enviando email cancelación:', e));
+        }
         res.json({ mensaje: 'Borrado' });
     } catch (err) { res.status(500).send(); }
 });
 
 app.post('/api/compras', async (req, res) => {
     try {
-        const { usuario_id, producto_id, cantidad, fecha, total } = req.body;
+        const { usuario_id, producto_id, cantidad, fecha, total, metodoPago } = req.body;
         const pool = getPool();
         await pool.query('UPDATE productos SET stock = stock - ? WHERE id = ?', [cantidad, producto_id]);
         const [result] = await pool.query('INSERT INTO compras (usuario_id, producto_id, cantidad, fecha, total) VALUES (?,?,?,?,?)', [usuario_id, producto_id, cantidad, fecha, total]);
+        Promise.all([
+            pool.query('SELECT nombre, email FROM usuarios WHERE id=?', [usuario_id]),
+            pool.query('SELECT nombre, precio FROM productos WHERE id=?', [producto_id])
+        ]).then(([[u], [p]]) => {
+            if (u && u.length > 0 && p && p.length > 0 && u[0].email) {
+                enviarConfirmacionCompra(u[0].email, {
+                    nombre: u[0].nombre,
+                    productos: [{ nombre: p[0].nombre, precio: parseFloat(p[0].precio) }],
+                    total: parseFloat(total),
+                    metodoPago: metodoPago || 'Tarjeta',
+                    fecha: fecha || new Date().toLocaleDateString('es-ES')
+                }).catch(e => console.log('Error enviando email compra:', e));
+            }
+        }).catch(() => {});
         res.status(201).json({ id: result.insertId });
     } catch (err) { res.status(500).send(); }
 });
@@ -240,18 +271,29 @@ app.post('/api/compras', async (req, res) => {
 app.delete('/api/compras/:id', async (req, res) => {
     try {
         const pool = getPool();
-        const [rows] = await pool.query('SELECT producto_id, cantidad FROM compras WHERE id = ?', [req.params.id]);
-        
+        const [rows] = await pool.query(
+            'SELECT c.*, p.nombre as producto_nombre, p.precio as producto_precio, u.email, u.nombre as usuario_nombre FROM compras c LEFT JOIN productos p ON c.producto_id = p.id LEFT JOIN usuarios u ON c.usuario_id = u.id WHERE c.id = ?',
+            [req.params.id]
+        );
+
         if (rows.length > 0) {
-            const { producto_id, cantidad } = rows[0];
-            await pool.query('UPDATE productos SET stock = stock + ? WHERE id = ?', [cantidad, producto_id]);
+            const c = rows[0];
+            await pool.query('UPDATE productos SET stock = stock + ? WHERE id = ?', [c.cantidad, c.producto_id]);
             await pool.query('DELETE FROM compras WHERE id = ?', [req.params.id]);
+            if (c.email) {
+                enviarConfirmacionDevolucion(c.email, {
+                    nombre: c.usuario_nombre,
+                    productos: `${c.producto_nombre} (x${c.cantidad})`,
+                    total: parseFloat(c.total),
+                    fecha: new Date().toLocaleDateString('es-ES')
+                }).catch(e => console.log('Error enviando email devolución:', e));
+            }
             res.json({ mensaje: 'Compra devuelta y stock restaurado' });
         } else {
             res.status(404).json({ error: 'Compra no encontrada' });
         }
-    } catch (err) { 
-        res.status(500).json({ error: err.message }); 
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -341,6 +383,119 @@ app.delete('/api/admin/instalaciones/:id', async (req, res) => {
         await pool.query('DELETE FROM instalaciones WHERE id = ?', [req.params.id]);
         res.json({ mensaje: 'Eliminada' });
     } catch (err) { res.status(500).send(); }
+});
+
+// ── RECUPERACIÓN DE CONTRASEÑA ────────────────────────────────────────────────
+
+app.post('/api/recuperar-contrasena', async (req, res) => {
+    try {
+        const { email } = req.body;
+        const pool = getPool();
+        const [users] = await pool.query('SELECT id, nombre FROM usuarios WHERE email = ?', [email]);
+        if (users.length === 0) return res.status(404).json({ error: 'Email no registrado' });
+        const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+        const expira = new Date(Date.now() + 15 * 60 * 1000);
+        await pool.query('DELETE FROM recuperaciones WHERE email = ?', [email]);
+        await pool.query('INSERT INTO recuperaciones (email, codigo, expira) VALUES (?, ?, ?)', [email, codigo, expira]);
+        try {
+            await enviarRecuperacionContrasena(email, { nombre: users[0].nombre, codigo });
+        } catch (emailErr) {
+            console.error('❌ Error enviando email de recuperación:', emailErr.message);
+            return res.status(500).json({ error: 'No se pudo enviar el email. Comprueba la configuración SMTP.' });
+        }
+        res.json({ mensaje: 'Código enviado' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/recuperar-contrasena/verificar', async (req, res) => {
+    try {
+        const { email, codigo, nuevaContrasena } = req.body;
+        const pool = getPool();
+        const [rows] = await pool.query(
+            'SELECT * FROM recuperaciones WHERE email = ? AND codigo = ? AND usado = 0 AND expira > NOW()',
+            [email, codigo]
+        );
+        if (rows.length === 0) return res.status(400).json({ error: 'Código inválido o expirado' });
+        await pool.query('UPDATE usuarios SET contrasena = ? WHERE email = ?', [nuevaContrasena, email]);
+        await pool.query('UPDATE recuperaciones SET usado = 1 WHERE id = ?', [rows[0].id]);
+        res.json({ mensaje: 'Contraseña actualizada' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── DASHBOARD ADMIN ───────────────────────────────────────────────────────────
+
+app.get('/api/admin/estadisticas', async (req, res) => {
+    try {
+        const pool = getPool();
+        const [[{ totalUsuarios }]] = await pool.query('SELECT COUNT(*) AS totalUsuarios FROM usuarios WHERE rol != "admin"');
+        const [[{ totalReservas }]] = await pool.query('SELECT COUNT(*) AS totalReservas FROM reservas');
+        const [[{ totalCompras }]] = await pool.query('SELECT COUNT(*) AS totalCompras FROM compras');
+        const [[{ ingresosTotales }]] = await pool.query('SELECT COALESCE(SUM(total), 0) AS ingresosTotales FROM compras');
+        const [reservasPorDeporte] = await pool.query('SELECT deporte, COUNT(*) AS total FROM reservas GROUP BY deporte ORDER BY total DESC');
+        const [productosMasVendidos] = await pool.query(`
+            SELECT p.nombre, SUM(c.cantidad) AS vendidos
+            FROM compras c JOIN productos p ON c.producto_id = p.id
+            GROUP BY p.id, p.nombre ORDER BY vendidos DESC LIMIT 5
+        `);
+        const [productosStockBajo] = await pool.query('SELECT id, nombre, stock FROM productos WHERE stock <= 10 ORDER BY stock ASC');
+        res.json({ totalUsuarios, totalReservas, totalCompras, ingresosTotales, reservasPorDeporte, productosMasVendidos, productosStockBajo });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── VALORACIONES ──────────────────────────────────────────────────────────────
+
+app.get('/api/valoraciones/:productoId', async (req, res) => {
+    try {
+        const pool = getPool();
+        const [rows] = await pool.query(`
+            SELECT v.*, u.nombre AS usuario_nombre
+            FROM valoraciones v JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.producto_id = ? ORDER BY v.id DESC
+        `, [req.params.productoId]);
+        const [[{ media }]] = await pool.query('SELECT AVG(puntuacion) AS media FROM valoraciones WHERE producto_id = ?', [req.params.productoId]);
+        res.json({ valoraciones: rows, media: media ? parseFloat(media).toFixed(1) : null });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/valoraciones', async (req, res) => {
+    try {
+        const { usuario_id, producto_id, puntuacion, comentario, fecha } = req.body;
+        const pool = getPool();
+        await pool.query(
+            'INSERT INTO valoraciones (usuario_id, producto_id, puntuacion, comentario, fecha) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE puntuacion=?, comentario=?, fecha=?',
+            [usuario_id, producto_id, puntuacion, comentario, fecha, puntuacion, comentario, fecha]
+        );
+        res.status(201).json({ mensaje: 'Valoración guardada' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── FAVORITOS ─────────────────────────────────────────────────────────────────
+
+app.get('/api/favoritos/:usuarioId', async (req, res) => {
+    try {
+        const pool = getPool();
+        const [rows] = await pool.query(`
+            SELECT p.* FROM favoritos f JOIN productos p ON f.producto_id = p.id WHERE f.usuario_id = ?
+        `, [req.params.usuarioId]);
+        res.json(rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/favoritos', async (req, res) => {
+    try {
+        const { usuario_id, producto_id } = req.body;
+        const pool = getPool();
+        await pool.query('INSERT IGNORE INTO favoritos (usuario_id, producto_id) VALUES (?, ?)', [usuario_id, producto_id]);
+        res.status(201).json({ mensaje: 'Añadido a favoritos' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/favoritos/:usuarioId/:productoId', async (req, res) => {
+    try {
+        const pool = getPool();
+        await pool.query('DELETE FROM favoritos WHERE usuario_id = ? AND producto_id = ?', [req.params.usuarioId, req.params.productoId]);
+        res.json({ mensaje: 'Eliminado de favoritos' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 function obtenerIPsLocales() {

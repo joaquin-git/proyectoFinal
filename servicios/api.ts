@@ -231,3 +231,91 @@ export const eliminarInstalacionAdmin = async (id: number) => {
   const res = await fetch(`${BASE_URL}/admin/instalaciones/${id}`, { method: 'DELETE' });
   return await res.json();
 };
+
+// --- RECUPERACIÓN DE CONTRASEÑA ---
+
+export const recuperarContrasena = async (email: string) => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/recuperar-contrasena`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};
+
+export const verificarRecuperacion = async (email: string, codigo: string, nuevaContrasena: string) => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/recuperar-contrasena/verificar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, codigo, nuevaContrasena }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};
+
+// --- DASHBOARD ADMIN ---
+
+export const getEstadisticasAdmin = async () => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/admin/estadisticas`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};
+
+// --- VALORACIONES ---
+
+export const getValoraciones = async (productoId: number | string) => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/valoraciones/${productoId}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};
+
+export const agregarValoracion = async (datos: any) => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/valoraciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};
+
+// --- FAVORITOS ---
+
+export const getFavoritosAPI = async (usuarioId: number | string) => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/favoritos/${usuarioId}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};
+
+export const agregarFavoritoAPI = async (usuarioId: number | string, productoId: number | string) => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/favoritos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario_id: usuarioId, producto_id: productoId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};
+
+export const eliminarFavoritoAPI = async (usuarioId: number | string, productoId: number | string) => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/favoritos/${usuarioId}/${productoId}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};

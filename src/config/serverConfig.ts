@@ -11,7 +11,7 @@ export const SERVER_CONFIGS = {
   },
   development_network: {
     name: 'Desarrollo (Red Local)',
-    url: 'http://192.168.1.X:3000/api',
+    url: 'http://192.168.1.50:3000/api',
     description: 'Para dispositivo físico en la misma red wifi'
   },
   production: {
@@ -22,7 +22,7 @@ export const SERVER_CONFIGS = {
 };
 
 const STORAGE_KEY = 'SERVER_CONFIG_URL';
-const DEFAULT_CONFIG = SERVER_CONFIGS.development_local.url;
+const DEFAULT_CONFIG = SERVER_CONFIGS.development_network.url;
 
 class ServerConfig {
   private currentUrl: string | null = null;

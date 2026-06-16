@@ -104,6 +104,12 @@ export default function PantallaLogin({
               >
                 ¿NO TIENES CUENTA? REGÍSTRATE
               </Text>
+              <Text
+                style={{ marginTop: 12, color: '#AAA', textAlign: 'center', fontSize: 12, letterSpacing: 0.5 }}
+                onPress={() => navigation.navigate('RecuperarContrasena')}
+              >
+                ¿Olvidaste tu contraseña?
+              </Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

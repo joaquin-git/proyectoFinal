@@ -36,6 +36,11 @@ yarn-error.*
 
 # scratch / development utilities
 scratch/
+backend/scratch_*.js
+backend/debug_*.js
+backend/clean_*.js
+backend/fix_*.js
+backend/test_*.js
 
 # typescript
 *.tsbuildinfo

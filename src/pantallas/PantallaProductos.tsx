@@ -31,6 +31,7 @@ export default function PantallaProductos({ navigation }: any) {
     categoriaSeleccionada, setCategoriaSeleccionada,
     carrito, totalCarrito,
     agregarAlCarrito, quitarDelCarrito,
+    toggleFavorito, isFavorito,
   } = useProductosViewModel();
 
   const [modalCarritoVisible, setModalCarritoVisible] = useState(false);
@@ -55,26 +56,39 @@ export default function PantallaProductos({ navigation }: any) {
     setModalOpcionesVisible(false);
   };
 
-  const renderProducto = ({ item }: { item: any }) => (
-    <View style={[styles.card, { backgroundColor: colores.fondoSecundario }]}>
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: item.imagen || DEFAULT_IMAGE }} style={styles.imagen} />
-      </View>
-      <View style={styles.info}>
-        <Text style={[styles.categoria, { color: colores.primario }]}>{item.categoria.toUpperCase()}</Text>
-        <Text style={[styles.nombre, { color: colores.textoPrincipal }]} numberOfLines={2}>{item.nombre}</Text>
-        <View style={styles.precioFila}>
-          <Text style={[styles.precio, { color: colores.textoPrincipal }]}>{item.precio.toFixed(2)}€</Text>
-          <TouchableOpacity
-            style={[styles.btnCarrito, { backgroundColor: colores.primario }]}
-            onPress={() => intentarAgregarAlCarrito(item)}
-          >
-            <Ionicons name="add" size={22} color="#FFF" />
+  const renderProducto = ({ item }: { item: any }) => {
+    const sinStock = item.stockNum === 0;
+    const esFavorito = isFavorito(item.id);
+    return (
+      <View style={[styles.card, { backgroundColor: colores.fondoSecundario }]}>
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: item.imagen || DEFAULT_IMAGE }} style={[styles.imagen, sinStock && { opacity: 0.5 }]} />
+          {sinStock && (
+            <View style={styles.badgeSinStock}>
+              <Text style={styles.badgeSinStockTexto}>Sin stock</Text>
+            </View>
+          )}
+          <TouchableOpacity style={styles.btnFavorito} onPress={() => toggleFavorito(item.id)}>
+            <Ionicons name={esFavorito ? 'heart' : 'heart-outline'} size={20} color={esFavorito ? '#FF4444' : '#FFF'} />
           </TouchableOpacity>
         </View>
+        <View style={styles.info}>
+          <Text style={[styles.categoria, { color: colores.primario }]}>{item.categoria.toUpperCase()}</Text>
+          <Text style={[styles.nombre, { color: colores.textoPrincipal }]} numberOfLines={2}>{item.nombre}</Text>
+          <View style={styles.precioFila}>
+            <Text style={[styles.precio, { color: colores.textoPrincipal }]}>{item.precio.toFixed(2)}€</Text>
+            <TouchableOpacity
+              style={[styles.btnCarrito, { backgroundColor: sinStock ? '#CCC' : colores.primario }]}
+              onPress={() => !sinStock && intentarAgregarAlCarrito(item)}
+              disabled={sinStock}
+            >
+              <Ionicons name="add" size={22} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.contenedor, { backgroundColor: colores.fondoPrincipal }]}>
@@ -272,6 +286,9 @@ const styles = StyleSheet.create({
   card: { width: COLUMN_WIDTH, borderRadius: 20, marginBottom: 20, overflow: 'hidden', elevation: 3 },
   imageContainer: { width: '100%', height: 140 },
   imagen: { width: '100%', height: '100%', resizeMode: 'cover' },
+  badgeSinStock: { position: 'absolute', bottom: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeSinStockTexto: { color: '#FFF', fontSize: 10, fontWeight: '800' },
+  btnFavorito: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 5 },
   info: { padding: 12 },
   categoria: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5, opacity: 0.8 },
   nombre: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3, height: 42, marginTop: 4, lineHeight: 20 },
