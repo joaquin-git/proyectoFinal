@@ -10,13 +10,14 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 
 **Funcionalidades principales:**
 
-- Registro e inicio de sesión de usuarios
+- Registro e inicio de sesión de usuarios con contraseñas cifradas (bcrypt)
 - Recuperación de contraseña por email con código de verificación de 6 dígitos
 - Catálogo de instalaciones deportivas con navegación a mapas
 - Reserva de pistas con disponibilidad en tiempo real por día y hora
 - Tienda de productos con carrito, filtros por categoría y selección de talla/color
 - Badge "Sin stock" en productos agotados con botón de añadir desactivado
-- Productos favoritos guardados localmente
+- Valoraciones y reseñas de productos con puntuación por estrellas
+- Productos favoritos sincronizados con el servidor
 - Historial de compras con gestión de devoluciones
 - Pasarela de pago (tarjeta de crédito y Bizum)
 - Perfil de usuario con edición de datos y foto
@@ -34,6 +35,13 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Confirmación de compra con desglose de productos
 - Confirmación de devolución con importe a reembolsar
 - Código de verificación para recuperación de contraseña
+
+**Calidad y experiencia de usuario:**
+
+- Skeleton loaders animados mientras cargan los datos
+- Toasts/notificaciones flotantes para feedback de acciones
+- Estados de error con botón de reintentar
+- Pull to refresh en pantallas de datos
 
 ---
 
@@ -60,7 +68,23 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 | Express | ^5.2.1 |
 | MySQL2 | ^3.20.0 |
 | Nodemailer | ^8.0.6 |
+| bcrypt | ^5.x |
 | dotenv | ^17.4.2 |
+
+---
+
+## Arquitectura MVVM
+
+El proyecto sigue el patrón **Model-View-ViewModel** de forma estricta:
+
+| Capa | Ubicación | Responsabilidad |
+|---|---|---|
+| **Model** | `src/models/` | Interfaces y tipos TypeScript |
+| **Service** | `src/services/` | Llamadas a la API y AsyncStorage |
+| **ViewModel** | `src/viewmodels/` | Lógica de negocio, estado derivado y acciones |
+| **View** | `src/pantallas/` | Renderizado puro, solo estado de UI |
+
+Las pantallas no realizan llamadas a la API directamente — toda la lógica pasa por el ViewModel correspondiente.
 
 ---
 
@@ -77,9 +101,9 @@ SportSpaceJMG/
 ├── servicios/
 │   └── api.ts              Funciones de llamada a la API REST
 └── src/
-    ├── componentes/        Componentes UI reutilizables
+    ├── componentes/        Componentes UI reutilizables (Toolbar, SkeletonCard, ErrorState...)
     ├── config/             Configuración dinámica de la URL del servidor
-    ├── contexto/           Estado global con React Context (reservas, tema)
+    ├── contexto/           Estado global con React Context (reservas, tema, toasts)
     ├── estilos/            Definición del tema claro/oscuro y estilos globales
     ├── models/             Modelos de datos TypeScript
     ├── navegacion/         Configuración de navegadores (React Navigation)
