@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ProductosService } from '../services/ProductosService';
+import { getFavoritosAPI, agregarFavoritoAPI, eliminarFavoritoAPI } from '../../servicios/api';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1621570277341-3965ff0f55cb?q=80&w=1000';
 
@@ -33,29 +34,36 @@ const mapearProducto = (p: any) => {
 export const useProductosViewModel = () => {
   const [productos, setProductos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
   const [carrito, setCarrito] = useState<any[]>([]);
   const [favoritoIds, setFavoritoIds] = useState<string[]>([]);
   const service = new ProductosService();
 
-  useEffect(() => {
-    const cargar = async () => {
-      try {
-        const [data, favRaw] = await Promise.all([
-          service.fetchProductos(),
-          AsyncStorage.getItem('favoritos'),
-        ]);
-        setProductos(data.map(mapearProducto));
-        if (favRaw) setFavoritoIds(JSON.parse(favRaw));
-      } catch (e) {
-        console.error('Error cargando productos:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    cargar();
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const usuarioRaw = await AsyncStorage.getItem('usuarioRegistrado');
+      const usuario = usuarioRaw ? JSON.parse(usuarioRaw) : null;
+
+      const [data, favs] = await Promise.all([
+        service.fetchProductos(),
+        usuario ? getFavoritosAPI(usuario.id).catch(() => []) : Promise.resolve([]),
+      ]);
+      setProductos(data.map(mapearProducto));
+      const ids = (favs as any[]).map((p: any) => p.id.toString());
+      setFavoritoIds(ids);
+      await AsyncStorage.setItem('favoritos', JSON.stringify(ids));
+    } catch (e) {
+      setError('No se pudieron cargar los productos');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, []);
 
   const productosFiltrados = useMemo(() => {
     return productos.filter(p => {
@@ -85,11 +93,18 @@ export const useProductosViewModel = () => {
   };
 
   const toggleFavorito = async (productoId: string) => {
-    const nuevos = favoritoIds.includes(productoId)
-      ? favoritoIds.filter(id => id !== productoId)
-      : [...favoritoIds, productoId];
+    const esFav = favoritoIds.includes(productoId);
+    const nuevos = esFav ? favoritoIds.filter(id => id !== productoId) : [...favoritoIds, productoId];
     setFavoritoIds(nuevos);
     await AsyncStorage.setItem('favoritos', JSON.stringify(nuevos));
+    try {
+      const usuarioRaw = await AsyncStorage.getItem('usuarioRegistrado');
+      if (usuarioRaw) {
+        const usuario = JSON.parse(usuarioRaw);
+        if (esFav) await eliminarFavoritoAPI(usuario.id, productoId);
+        else await agregarFavoritoAPI(usuario.id, productoId);
+      }
+    } catch (e) { /* silencioso: ya actualizamos AsyncStorage */ }
   };
 
   const isFavorito = (productoId: string) => favoritoIds.includes(productoId);
@@ -98,6 +113,8 @@ export const useProductosViewModel = () => {
     productos,
     productosFiltrados,
     loading,
+    error,
+    load,
     busqueda,
     setBusqueda,
     categoriaSeleccionada,

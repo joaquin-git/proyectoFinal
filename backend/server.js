@@ -2,6 +2,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const bcrypt = require('bcrypt');
 const { initDB, getPool } = require('./database');
 const {
     enviarConfirmacionReserva,
@@ -109,9 +110,10 @@ app.post('/api/registro', async (req, res) => {
         const { nombre, usuario, email, contrasena, telefono, direccion } = req.body;
         const pool = getPool();
         const dirStr = direccion ? JSON.stringify(direccion) : null;
+        const hash = await bcrypt.hash(contrasena, 10);
         const [result] = await pool.query(
             'INSERT INTO usuarios (nombre, usuario, email, contrasena, telefono, direccion) VALUES (?, ?, ?, ?, ?, ?)',
-            [nombre, usuario, email, contrasena, telefono || null, dirStr]
+            [nombre, usuario, email, hash, telefono || null, dirStr]
         );
         enviarBienvenida(email, nombre).catch(e => console.log('Error enviando email:', e));
         res.status(201).json({ id: result.insertId });
@@ -123,16 +125,31 @@ app.post('/api/login', async (req, res) => {
         const { email, contrasena } = req.body;
         const pool = getPool();
         const [rows] = await pool.query(
-            'SELECT * FROM usuarios WHERE (email = ? OR usuario = ?) AND contrasena = ?', 
-            [email, email, contrasena]
+            'SELECT * FROM usuarios WHERE email = ? OR usuario = ?',
+            [email, email]
         );
         if (rows.length === 0) return res.status(401).json({ error: 'Credenciales inválidas' });
-        
+
         let user = rows[0];
+        let match = false;
+
+        if (user.contrasena.startsWith('$2b$')) {
+            match = await bcrypt.compare(contrasena, user.contrasena);
+        } else {
+            match = contrasena === user.contrasena;
+            if (match) {
+                const hash = await bcrypt.hash(contrasena, 10);
+                await pool.query('UPDATE usuarios SET contrasena = ? WHERE id = ?', [hash, user.id]);
+            }
+        }
+
+        if (!match) return res.status(401).json({ error: 'Credenciales inválidas' });
+
         if (user.direccion && user.direccion !== '[object Object]') {
             try { user.direccion = JSON.parse(user.direccion); } catch (e) {}
         }
-        res.json(user);
+        const { contrasena: _, ...userSinPassword } = user;
+        res.json(userSinPassword);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -141,10 +158,13 @@ app.put('/api/usuarios/:id', async (req, res) => {
         const { nombre, usuario, email, contrasena, telefono, direccion, foto } = req.body;
         const pool = getPool();
         const dirStr = direccion && typeof direccion === 'object' ? JSON.stringify(direccion) : direccion;
-        
+        let contrasenaFinal = contrasena;
+        if (contrasena && !contrasena.startsWith('$2b$')) {
+            contrasenaFinal = await bcrypt.hash(contrasena, 10);
+        }
         await pool.query(
             'UPDATE usuarios SET nombre=?, usuario=?, email=?, contrasena=?, telefono=?, direccion=?, foto=? WHERE id=?',
-            [nombre, usuario, email, contrasena, telefono, dirStr, foto, req.params.id]
+            [nombre, usuario, email, contrasenaFinal, telefono, dirStr, foto, req.params.id]
         );
         res.json({ mensaje: 'Actualizado' });
     } catch (err) { res.status(500).send(); }
@@ -416,7 +436,8 @@ app.post('/api/recuperar-contrasena/verificar', async (req, res) => {
             [email, codigo]
         );
         if (rows.length === 0) return res.status(400).json({ error: 'Código inválido o expirado' });
-        await pool.query('UPDATE usuarios SET contrasena = ? WHERE email = ?', [nuevaContrasena, email]);
+        const hashNueva = await bcrypt.hash(nuevaContrasena, 10);
+        await pool.query('UPDATE usuarios SET contrasena = ? WHERE email = ?', [hashNueva, email]);
         await pool.query('UPDATE recuperaciones SET usado = 1 WHERE id = ?', [rows[0].id]);
         res.json({ mensaje: 'Contraseña actualizada' });
     } catch (err) { res.status(500).json({ error: err.message }); }

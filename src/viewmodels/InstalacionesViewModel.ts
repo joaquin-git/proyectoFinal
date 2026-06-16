@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Platform, Linking, Alert } from 'react-native';
 import { InstalacionesService } from '../services/InstalacionesService';
 
@@ -7,22 +7,24 @@ const DEPORTES_PERMITIDOS = ['Fútbol 7', 'Fútbol Sala', 'Pádel', 'Tenis'];
 export const useInstalacionesViewModel = () => {
   const [instalaciones, setInstalaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const service = new InstalacionesService();
 
-  useEffect(() => {
-    const cargar = async () => {
-      try {
-        const data = await service.fetchInstalaciones();
-        setInstalaciones(data);
-      } catch (e) {
-        console.error('Error cargando instalaciones:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    cargar();
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await service.fetchInstalaciones();
+      setInstalaciones(data);
+    } catch (e) {
+      setError('No se pudieron cargar las instalaciones');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, []);
 
   const datosFiltrados = useMemo(() => {
     return instalaciones.filter((item: any) => {
@@ -53,6 +55,8 @@ export const useInstalacionesViewModel = () => {
     instalaciones,
     datosFiltrados,
     loading,
+    error,
+    load,
     busqueda,
     setBusqueda,
     comoLlegar,

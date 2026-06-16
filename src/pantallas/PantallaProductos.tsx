@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,22 +11,115 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
-  Modal
+  Modal,
+  TextInput as RNTextInput,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useTema } from '../navegacion/NavegacionRaiz';
 import { useProductosViewModel } from '../viewmodels/ProductosViewModel';
+import { useValoracionesViewModel } from '../viewmodels/ValoracionesViewModel';
+import { SkeletonListaProductos } from '../componentes/SkeletonCard';
+import ErrorState from '../componentes/ErrorState';
+import { useToast } from '../contexto/ToastContext';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = width / 2 - 25;
 const CATEGORIAS = ['Todos', 'Tenis', 'Pádel', 'Fútbol Sala', 'Fútbol 7', 'Ropa', 'Complementos'];
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1621570277341-3965ff0f55cb?q=80&w=1000';
 
+function ModalValoraciones({ producto, visible, onClose, colores }: any) {
+  const vm = useValoracionesViewModel(producto?.id ?? '');
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    if (visible && producto?.id) vm.load();
+  }, [visible, producto?.id]);
+
+  const handleEnviar = async () => {
+    if (vm.miPuntuacion === 0) { showToast('Selecciona una puntuación', 'error'); return; }
+    const ok = await vm.enviarValoracion();
+    if (ok) showToast('¡Valoración enviada!', 'success');
+    else showToast('Error al enviar la valoración', 'error');
+  };
+
+  if (!producto) return null;
+
+  return (
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+        <View style={[estilosVal.contenedor, { backgroundColor: colores.fondoPrincipal }]}>
+          <View style={estilosVal.header}>
+            <Text style={[estilosVal.titulo, { color: colores.textoPrincipal }]}>{producto.nombre}</Text>
+            <TouchableOpacity onPress={onClose}><Ionicons name="close" size={26} color={colores.textoPrincipal} /></TouchableOpacity>
+          </View>
+
+          <View style={estilosVal.mediaFila}>
+            <Text style={[estilosVal.mediaNum, { color: colores.primario }]}>{vm.media ?? '—'}</Text>
+            <View>
+              <View style={estilosVal.estrellasFila}>
+                {[1,2,3,4,5].map(n => (
+                  <Ionicons key={n} name={n <= Math.round(parseFloat(vm.media ?? '0')) ? 'star' : 'star-outline'} size={20} color="#FFD700" />
+                ))}
+              </View>
+              <Text style={{ color: colores.textoSecundario, fontSize: 12 }}>{vm.valoraciones.length} valoraciones</Text>
+            </View>
+          </View>
+
+          <Text style={[estilosVal.seccion, { color: colores.textoSecundario }]}>TU VALORACIÓN</Text>
+          <View style={estilosVal.estrellasFila}>
+            {[1,2,3,4,5].map(n => (
+              <TouchableOpacity key={n} onPress={() => vm.setMiPuntuacion(n)}>
+                <Ionicons name={n <= vm.miPuntuacion ? 'star' : 'star-outline'} size={32} color="#FFD700" />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TextInput
+            style={[estilosVal.input, { backgroundColor: colores.fondoSecundario, color: colores.textoPrincipal }]}
+            placeholder="Escribe un comentario (opcional)"
+            placeholderTextColor={colores.textoSecundario}
+            value={vm.miComentario}
+            onChangeText={vm.setMiComentario}
+            multiline
+            numberOfLines={2}
+          />
+          <TouchableOpacity style={[estilosVal.boton, { backgroundColor: colores.primario }]} onPress={handleEnviar} disabled={vm.enviando}>
+            {vm.enviando ? <ActivityIndicator color="#FFF" /> : <Text style={estilosVal.botonTexto}>Enviar valoración</Text>}
+          </TouchableOpacity>
+
+          {vm.valoraciones.length > 0 && (
+            <>
+              <Text style={[estilosVal.seccion, { color: colores.textoSecundario, marginTop: 20 }]}>RESEÑAS</Text>
+              <ScrollView style={{ maxHeight: 180 }} showsVerticalScrollIndicator={false}>
+                {vm.valoraciones.map((v: any) => (
+                  <View key={v.id} style={[estilosVal.resena, { backgroundColor: colores.fondoSecundario }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text style={{ color: colores.textoPrincipal, fontWeight: '700', fontSize: 13 }}>{v.usuario_nombre}</Text>
+                      <View style={{ flexDirection: 'row' }}>
+                        {[1,2,3,4,5].map(n => <Ionicons key={n} name={n <= v.puntuacion ? 'star' : 'star-outline'} size={12} color="#FFD700" />)}
+                      </View>
+                    </View>
+                    {v.comentario ? <Text style={{ color: colores.textoSecundario, fontSize: 12 }}>{v.comentario}</Text> : null}
+                    <Text style={{ color: colores.textoSecundario, fontSize: 10, marginTop: 4 }}>{v.fecha}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function PantallaProductos({ navigation }: any) {
   const { colores } = useTema();
+  const { showToast } = useToast();
 
   const {
     productosFiltrados,
+    loading, error, load,
     busqueda, setBusqueda,
     categoriaSeleccionada, setCategoriaSeleccionada,
     carrito, totalCarrito,
@@ -36,7 +129,9 @@ export default function PantallaProductos({ navigation }: any) {
 
   const [modalCarritoVisible, setModalCarritoVisible] = useState(false);
   const [modalOpcionesVisible, setModalOpcionesVisible] = useState(false);
+  const [modalValoracionesVisible, setModalValoracionesVisible] = useState(false);
   const [productoEnSeleccion, setProductoEnSeleccion] = useState<any>(null);
+  const [productoValoracion, setProductoValoracion] = useState<any>(null);
   const [tallaElegida, setTallaElegida] = useState('');
   const [colorElegido, setColorElegido] = useState('');
 
@@ -48,19 +143,31 @@ export default function PantallaProductos({ navigation }: any) {
       setModalOpcionesVisible(true);
     } else {
       agregarAlCarrito(producto);
+      showToast(`${producto.nombre} añadido al carrito`, 'success');
     }
+  };
+
+  const handleToggleFavorito = async (item: any) => {
+    const eraFav = isFavorito(item.id);
+    await toggleFavorito(item.id);
+    showToast(eraFav ? 'Eliminado de favoritos' : 'Añadido a favoritos', eraFav ? 'info' : 'success');
   };
 
   const confirmarAgregarAlCarrito = () => {
     agregarAlCarrito(productoEnSeleccion, tallaElegida, colorElegido);
     setModalOpcionesVisible(false);
+    showToast(`${productoEnSeleccion.nombre} añadido al carrito`, 'success');
   };
 
   const renderProducto = ({ item }: { item: any }) => {
     const sinStock = item.stockNum === 0;
     const esFavorito = isFavorito(item.id);
     return (
-      <View style={[styles.card, { backgroundColor: colores.fondoSecundario }]}>
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colores.fondoSecundario }]}
+        onPress={() => { setProductoValoracion(item); setModalValoracionesVisible(true); }}
+        activeOpacity={0.9}
+      >
         <View style={styles.imageContainer}>
           <Image source={{ uri: item.imagen || DEFAULT_IMAGE }} style={[styles.imagen, sinStock && { opacity: 0.5 }]} />
           {sinStock && (
@@ -68,7 +175,7 @@ export default function PantallaProductos({ navigation }: any) {
               <Text style={styles.badgeSinStockTexto}>Sin stock</Text>
             </View>
           )}
-          <TouchableOpacity style={styles.btnFavorito} onPress={() => toggleFavorito(item.id)}>
+          <TouchableOpacity style={styles.btnFavorito} onPress={() => handleToggleFavorito(item)}>
             <Ionicons name={esFavorito ? 'heart' : 'heart-outline'} size={20} color={esFavorito ? '#FF4444' : '#FFF'} />
           </TouchableOpacity>
         </View>
@@ -79,14 +186,14 @@ export default function PantallaProductos({ navigation }: any) {
             <Text style={[styles.precio, { color: colores.textoPrincipal }]}>{item.precio.toFixed(2)}€</Text>
             <TouchableOpacity
               style={[styles.btnCarrito, { backgroundColor: sinStock ? '#CCC' : colores.primario }]}
-              onPress={() => !sinStock && intentarAgregarAlCarrito(item)}
+              onPress={(e) => { e.stopPropagation?.(); !sinStock && intentarAgregarAlCarrito(item); }}
               disabled={sinStock}
             >
               <Ionicons name="add" size={22} color="#FFF" />
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -147,15 +254,23 @@ export default function PantallaProductos({ navigation }: any) {
         />
       </View>
 
-      <FlatList
-        data={productosFiltrados}
-        renderItem={renderProducto}
-        keyExtractor={item => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.lista}
-        columnWrapperStyle={styles.columnas}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <SkeletonListaProductos />
+      ) : error ? (
+        <ErrorState mensaje={error} onReintentar={load} />
+      ) : (
+        <FlatList
+          data={productosFiltrados}
+          renderItem={renderProducto}
+          keyExtractor={item => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.lista}
+          columnWrapperStyle={styles.columnas}
+          showsVerticalScrollIndicator={false}
+          refreshing={loading}
+          onRefresh={load}
+        />
+      )}
 
       <Modal animationType="fade" transparent visible={modalOpcionesVisible}>
         <View style={styles.overlayModal}>
@@ -261,9 +376,29 @@ export default function PantallaProductos({ navigation }: any) {
           </View>
         </View>
       </Modal>
+      <ModalValoraciones
+        producto={productoValoracion}
+        visible={modalValoracionesVisible}
+        onClose={() => setModalValoracionesVisible(false)}
+        colores={colores}
+      />
     </SafeAreaView>
   );
 }
+
+const estilosVal = StyleSheet.create({
+  contenedor: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '85%' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  titulo: { fontSize: 17, fontWeight: '800', flex: 1, marginRight: 10 },
+  mediaFila: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)' },
+  mediaNum: { fontSize: 42, fontWeight: '900' },
+  estrellasFila: { flexDirection: 'row', gap: 4, marginBottom: 4 },
+  seccion: { fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 10 },
+  input: { borderRadius: 10, padding: 12, marginBottom: 12, minHeight: 60, textAlignVertical: 'top' },
+  boton: { padding: 14, borderRadius: 12, alignItems: 'center' },
+  botonTexto: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  resena: { borderRadius: 10, padding: 12, marginBottom: 8 },
+});
 
 const styles = StyleSheet.create({
   contenedor: { flex: 1 },

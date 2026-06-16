@@ -6,6 +6,7 @@ import NavegacionApp from './NavegacionApp';
 import NavegacionAdmin from './NavegacionAdmin';
 import { temaClaro, temaOscuro, NombreTema } from '../estilos/tema';
 import { ReservasProvider } from '../contexto/ReservasContext';
+import { ToastProvider } from '../contexto/ToastContext';
 
 export const TemaContext = React.createContext<{
 	nombreTema: NombreTema;
@@ -43,6 +44,7 @@ export default function NavegacionRaiz() {
 
 	return (
 		<TemaContext.Provider value={contexto}>
+			<ToastProvider>
 			<ReservasProvider>
 				<NavigationContainer>
 					<Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -62,6 +64,7 @@ export default function NavegacionRaiz() {
 					</Stack.Navigator>
 				</NavigationContainer>
 			</ReservasProvider>
+			</ToastProvider>
 		</TemaContext.Provider>
 	);
 }
