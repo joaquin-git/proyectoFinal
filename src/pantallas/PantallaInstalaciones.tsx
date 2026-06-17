@@ -114,7 +114,7 @@ export default function PantallaInstalaciones({ navigation }: any) {
             style={[styles.btnSecundario, { borderColor: '#FFD700' }]}
             onPress={() => { setInstalacionValoracion(item); setModalValoracionVisible(true); }}
           >
-            <AntDesign name="staro" size={14} color="#DAA520" />
+            <AntDesign name="star" size={14} color="#DAA520" />
             <Text style={[styles.txtSecundario, { color: '#DAA520', marginLeft: 4 }]}>Valorar</Text>
           </TouchableOpacity>
         </View>

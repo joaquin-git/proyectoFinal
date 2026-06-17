@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useTema } from '../navegacion/NavegacionRaiz';
 import { usePagoViewModel } from '../viewmodels/PagoViewModel';
+import { programarRecordatorioReserva } from '../utils/notificaciones';
 
 export default function PantallaPago({ route, navigation }: any) {
   const { colores } = useTema();
@@ -51,6 +52,12 @@ export default function PantallaPago({ route, navigation }: any) {
       });
     } else if (reservaData) {
       await pagarReserva(reservaData, () => {
+        programarRecordatorioReserva(
+          reservaData.deporte,
+          reservaData.pista,
+          reservaData.fecha,
+          reservaData.hora,
+        );
         Alert.alert('¡Reserva Confirmada!', 'Tu pista ha sido reservada con éxito.', [
           { text: 'Aceptar', onPress: () => navigation.popToTop() },
         ]);
