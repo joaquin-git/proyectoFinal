@@ -62,6 +62,14 @@ async function initDB() {
             await pool.query('ALTER TABLE usuarios MODIFY COLUMN foto MEDIUMTEXT');
         } catch (e) { /* Columna ya modificada o error */ }
 
+        try {
+            await pool.query('ALTER TABLE productos MODIFY COLUMN imagen MEDIUMTEXT');
+        } catch (e) { /* Columna ya modificada */ }
+
+        try {
+            await pool.query('ALTER TABLE instalaciones MODIFY COLUMN imagen MEDIUMTEXT');
+        } catch (e) { /* Columna ya modificada */ }
+
         // 2. Tabla Instalaciones: Centros deportivos con coordenadas para el mapa
         // latitud y longitud son FLOAT para poder posicionarlos en el mapa de Google
         await pool.query(`CREATE TABLE IF NOT EXISTS instalaciones (

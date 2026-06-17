@@ -15,6 +15,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useTema } from '../../navegacion/NavegacionRaiz';
 import { useAdminInstalacionesViewModel } from '../../viewmodels/AdminInstalacionesViewModel';
 import { useValoracionesInstalacionViewModel } from '../../viewmodels/ValoracionesInstalacionViewModel';
@@ -43,6 +44,24 @@ export default function AdminInstalaciones() {
   useEffect(() => {
     load();
   }, []);
+
+  const seleccionarImagen = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería para seleccionar imágenes.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.5,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      setImagen(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
 
   const abrirModal = (inst?: any) => {
     if (inst) {
@@ -224,8 +243,38 @@ export default function AdminInstalaciones() {
                 </View>
               </View>
 
-              <Text style={[styles.label, { color: colores.textoSecundario }]}>Imagen URL (Opcional)</Text>
-              <TextInput style={[styles.input, { color: colores.textoPrincipal, backgroundColor: colores.fondoSecundario }]} value={imagen} onChangeText={setImagen} placeholder="https://..." />
+              <Text style={[styles.label, { color: colores.textoSecundario }]}>Imagen</Text>
+
+              {imagen ? (
+                <View style={styles.previewContainer}>
+                  <Image source={{ uri: imagen }} style={styles.previewImg} />
+                  <TouchableOpacity style={styles.btnQuitarImagen} onPress={() => setImagen('')}>
+                    <Ionicons name="close-circle" size={26} color="#FF5252" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={[styles.placeholderImagen, { backgroundColor: colores.fondoSecundario }]}>
+                  <Ionicons name="image-outline" size={36} color={colores.textoSecundario} />
+                  <Text style={{ color: colores.textoSecundario, fontSize: 13, marginTop: 6 }}>Sin imagen</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[styles.btnGaleria, { borderColor: colores.primario }]}
+                onPress={seleccionarImagen}
+              >
+                <Ionicons name="images-outline" size={20} color={colores.primario} />
+                <Text style={[styles.btnGaleriaTexto, { color: colores.primario }]}>Seleccionar de galería</Text>
+              </TouchableOpacity>
+
+              <Text style={[styles.labelUrl, { color: colores.textoSecundario }]}>— o pega una URL —</Text>
+              <TextInput
+                style={[styles.input, { color: colores.textoPrincipal, backgroundColor: colores.fondoSecundario }]}
+                value={imagen.startsWith('data:') ? '' : imagen}
+                onChangeText={setImagen}
+                placeholder="https://..."
+                placeholderTextColor={colores.textoSecundario}
+              />
 
               <Text style={[styles.label, { color: colores.textoSecundario }]}>Ubicación GPS (Enlace de Maps o Lat, Lng)</Text>
               <TextInput
@@ -235,12 +284,6 @@ export default function AdminInstalaciones() {
                 placeholder="Pega el enlace de compartir de Google Maps"
               />
 
-              {imagen ? (
-                <View style={styles.previewContainer}>
-                  <Text style={[styles.label, { color: colores.textoSecundario }]}>Vista Previa</Text>
-                  <Image source={{ uri: imagen }} style={styles.previewImg} />
-                </View>
-              ) : null}
 
               <TouchableOpacity style={[styles.botonGuardar, { backgroundColor: colores.primario }]} onPress={guardarInstalacion}>
                 <Text style={styles.textoGuardar}>Guardar Cambios</Text>
@@ -369,6 +412,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
   botonGuardar: { height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginTop: 30, marginBottom: 50 },
   textoGuardar: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  previewContainer: { marginTop: 15, alignItems: 'center' },
-  previewImg: { width: 150, height: 100, borderRadius: 15 }
+  previewContainer: { marginTop: 10, position: 'relative' },
+  previewImg: { width: '100%', height: 180, borderRadius: 15 },
+  btnQuitarImagen: { position: 'absolute', top: -10, right: -10 },
+  placeholderImagen: { height: 120, borderRadius: 15, marginTop: 10, justifyContent: 'center', alignItems: 'center' },
+  btnGaleria: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderRadius: 12, paddingVertical: 12, marginTop: 12, gap: 8 },
+  btnGaleriaTexto: { fontWeight: '700', fontSize: 15 },
+  labelUrl: { textAlign: 'center', fontSize: 12, marginTop: 16, marginBottom: 4 }
 });
