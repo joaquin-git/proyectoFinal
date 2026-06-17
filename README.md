@@ -10,7 +10,7 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 
 **Funcionalidades principales:**
 
-- Registro e inicio de sesión de usuarios con contraseñas cifradas (bcrypt)
+- Registro e inicio de sesión de usuarios con contraseñas cifradas (bcrypt) y autenticación JWT
 - Recuperación de contraseña por email con código de verificación de 6 dígitos
 - Catálogo de instalaciones deportivas con navegación a mapas
 - Reserva de pistas con disponibilidad en tiempo real por día y hora
@@ -38,6 +38,14 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Confirmación de compra con desglose de productos
 - Confirmación de devolución con importe a reembolsar
 - Código de verificación para recuperación de contraseña
+
+**Seguridad:**
+
+- Autenticación JWT: access token (2h) + refresh token (7d) emitidos en login y registro
+- Todas las rutas sensibles del backend protegidas con middleware `verificarToken`
+- Rutas públicas sin protección: catálogo, valoraciones GET, recuperar contraseña
+- Refresco automático de token en el frontend sin que el usuario note nada
+- Tokens almacenados en AsyncStorage y eliminados completamente al cerrar sesión
 
 **Calidad y experiencia de usuario:**
 
@@ -74,6 +82,7 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 | MySQL2 | ^3.20.0 |
 | Nodemailer | ^8.0.6 |
 | bcrypt | ^5.x |
+| jsonwebtoken | ^9.0.3 |
 | dotenv | ^17.4.2 |
 
 ---
@@ -166,6 +175,8 @@ EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=tu_correo@gmail.com
 EMAIL_PASS=tu_contraseña_de_aplicacion
+
+JWT_SECRET=cambia_esto_por_una_clave_secreta_larga
 ```
 
 > Para el envío de emails con Gmail necesitas una **contraseña de aplicación**: activa la verificación en 2 pasos en tu cuenta de Google y genera una en *Seguridad → Contraseñas de aplicaciones*.
