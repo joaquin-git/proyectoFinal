@@ -31,6 +31,8 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Admin: visor de valoraciones de productos e instalaciones (solo lectura, con media y reseñas por usuario)
 - Paginación en tienda e instalaciones: se muestran 10 / 6 items por página con botón "Ver más" y contador de restantes
 - Subida de imagen desde la galería del móvil en el panel admin (productos e instalaciones), con preview y opción alternativa de URL
+- Filtro de instalaciones por deporte con chips (Todos / Fútbol 7 / Fútbol Sala / Pádel / Tenis), combinable con búsqueda por texto
+- Estado vacío en instalaciones con botón "Limpiar filtros" cuando no hay resultados
 
 **Notificaciones por email:**
 
@@ -224,9 +226,9 @@ npm run test:coverage
 |---|---|---|
 | `validaciones.test.ts` | 24 | Email, DNI (cálculo de letra de control), fecha y contraseña fuerte |
 | `ProductosViewModel.test.ts` | 16 | Carga, error, filtrado por nombre y categoría, paginación, carrito y favoritos |
-| `InstalacionesViewModel.test.ts` | 12 | Carga, error, filtrado por nombre y deporte, paginación y `parsearDeportes` |
+| `InstalacionesViewModel.test.ts` | 15 | Carga, error, filtrado por nombre, por chip de deporte, combinado, sin resultados, paginación y `parsearDeportes` |
 
-**Total: 52 tests — 3 suites**
+**Total: 55 tests — 3 suites**
 
 ---
 
