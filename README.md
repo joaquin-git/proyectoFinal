@@ -29,6 +29,8 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Panel de administración con CRUD completo de usuarios, productos e instalaciones
 - Dashboard de administración con métricas en tiempo real
 - Admin: visor de valoraciones de productos e instalaciones (solo lectura, con media y reseñas por usuario)
+- Paginación en tienda e instalaciones: se muestran 10 / 6 items por página con botón "Ver más" y contador de restantes
+- Subida de imagen desde la galería del móvil en el panel admin (productos e instalaciones), con preview y opción alternativa de URL
 
 **Notificaciones por email:**
 
@@ -55,6 +57,7 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Pull to refresh en pantallas de datos
 - Todos los mensajes de validación en español
 - Mensaje de error legible si MySQL no está en ejecución al arrancar el backend
+- Paginación client-side con botón "Ver más" y contador de items restantes
 
 ---
 
