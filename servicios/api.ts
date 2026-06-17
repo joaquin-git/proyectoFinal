@@ -290,6 +290,33 @@ export const agregarValoracion = async (datos: any) => {
   return data;
 };
 
+// --- VALORACIONES INSTALACIONES ---
+
+export const getValoracionesInstalacion = async (instalacionId: number | string) => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/valoraciones-instalaciones/${instalacionId}`);
+  const text = await res.text();
+  try {
+    const data = JSON.parse(text);
+    if (!res.ok) throw new Error(data.error || 'Error desconocido');
+    return data;
+  } catch {
+    throw new Error(`Respuesta inesperada del servidor (${res.status}): ${text.substring(0, 80)}`);
+  }
+};
+
+export const agregarValoracionInstalacion = async (datos: any) => {
+  const url = await getBaseUrl();
+  const res = await fetch(`${url}/valoraciones-instalaciones`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};
+
 // --- FAVORITOS ---
 
 export const getFavoritosAPI = async (usuarioId: number | string) => {

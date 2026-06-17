@@ -148,6 +148,19 @@ async function initDB() {
             FOREIGN KEY(producto_id) REFERENCES productos(id) ON DELETE CASCADE
         )`);
 
+        // 9. Tabla Valoraciones de instalaciones
+        await pool.query(`CREATE TABLE IF NOT EXISTS valoraciones_instalaciones (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            usuario_id INT,
+            instalacion_id INT,
+            puntuacion INT,
+            comentario TEXT,
+            fecha VARCHAR(50),
+            UNIQUE KEY unica_val_inst (usuario_id, instalacion_id),
+            FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+            FOREIGN KEY(instalacion_id) REFERENCES instalaciones(id) ON DELETE CASCADE
+        )`);
+
         // --- INSERCIÓN DE DATOS INICIALES (Solo si las tablas están vacías) ---
 
         // Usuarios por defecto (Test y Admin)

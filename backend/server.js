@@ -490,6 +490,33 @@ app.post('/api/valoraciones', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── VALORACIONES INSTALACIONES ────────────────────────────────────────────────
+
+app.get('/api/valoraciones-instalaciones/:instalacionId', async (req, res) => {
+    try {
+        const pool = getPool();
+        const [rows] = await pool.query(`
+            SELECT v.*, u.nombre AS usuario_nombre
+            FROM valoraciones_instalaciones v JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.instalacion_id = ? ORDER BY v.id DESC
+        `, [req.params.instalacionId]);
+        const [[{ media }]] = await pool.query('SELECT AVG(puntuacion) AS media FROM valoraciones_instalaciones WHERE instalacion_id = ?', [req.params.instalacionId]);
+        res.json({ valoraciones: rows, media: media ? parseFloat(media).toFixed(1) : null });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/valoraciones-instalaciones', async (req, res) => {
+    try {
+        const { usuario_id, instalacion_id, puntuacion, comentario, fecha } = req.body;
+        const pool = getPool();
+        await pool.query(
+            'INSERT INTO valoraciones_instalaciones (usuario_id, instalacion_id, puntuacion, comentario, fecha) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE puntuacion=?, comentario=?, fecha=?',
+            [usuario_id, instalacion_id, puntuacion, comentario, fecha, puntuacion, comentario, fecha]
+        );
+        res.status(201).json({ mensaje: 'Valoración guardada' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── FAVORITOS ─────────────────────────────────────────────────────────────────
 
 app.get('/api/favoritos/:usuarioId', async (req, res) => {

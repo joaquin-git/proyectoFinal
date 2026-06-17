@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,17 @@ import {
   TextInput,
   FlatList,
   Image,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Entypo, AntDesign, Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useTema } from '../navegacion/NavegacionRaiz';
 import { useInstalacionesViewModel } from '../viewmodels/InstalacionesViewModel';
+import { useValoracionesInstalacionViewModel } from '../viewmodels/ValoracionesInstalacionViewModel';
 import { getImagenInstalacion, DEFAULT_IMAGE } from '../utils/imagenesInstalaciones';
+import { useToast } from '../contexto/ToastContext';
 
 export interface Instalacion {
   id: string | number;
@@ -33,6 +37,8 @@ export interface Instalacion {
 export default function PantallaInstalaciones({ navigation }: any) {
   const { colores } = useTema();
   const [mostrarMapa, setMostrarMapa] = useState(false);
+  const [instalacionValoracion, setInstalacionValoracion] = useState<any>(null);
+  const [modalValoracionVisible, setModalValoracionVisible] = useState(false);
 
   const {
     instalaciones,
@@ -98,6 +104,14 @@ export default function PantallaInstalaciones({ navigation }: any) {
           >
             <Text style={[styles.txtSecundario, { color: colores.primario }]}>Llegar</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.btnSecundario, { borderColor: '#FFD700' }]}
+            onPress={() => { setInstalacionValoracion(item); setModalValoracionVisible(true); }}
+          >
+            <AntDesign name="staro" size={14} color="#DAA520" />
+            <Text style={[styles.txtSecundario, { color: '#DAA520', marginLeft: 4 }]}>Valorar</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -141,6 +155,13 @@ export default function PantallaInstalaciones({ navigation }: any) {
         <Text style={styles.txtFlotante}>Ver Mapa</Text>
       </TouchableOpacity>
 
+      <ModalValoracionInstalacion
+        instalacion={instalacionValoracion}
+        visible={modalValoracionVisible}
+        onClose={() => setModalValoracionVisible(false)}
+        colores={colores}
+      />
+
       <Modal visible={mostrarMapa} animationType="slide">
         <View style={{ flex: 1 }}>
           <MapView
@@ -175,6 +196,103 @@ export default function PantallaInstalaciones({ navigation }: any) {
     </View>
   );
 }
+
+function ModalValoracionInstalacion({ instalacion, visible, onClose, colores }: any) {
+  const vm = useValoracionesInstalacionViewModel(instalacion?.id?.toString() ?? '');
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    if (visible && instalacion?.id) vm.load();
+  }, [visible, instalacion?.id]);
+
+  const handleEnviar = async () => {
+    if (vm.miPuntuacion === 0) { showToast('Selecciona una puntuación', 'error'); return; }
+    const ok = await vm.enviarValoracion();
+    if (ok) showToast('¡Valoración enviada!', 'success');
+    else showToast('Error al enviar la valoración', 'error');
+  };
+
+  if (!instalacion) return null;
+
+  return (
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+        <View style={[estilosModal.contenedor, { backgroundColor: colores.fondoPrincipal }]}>
+          <View style={estilosModal.header}>
+            <Text style={[estilosModal.titulo, { color: colores.textoPrincipal }]} numberOfLines={1}>{instalacion.nombre}</Text>
+            <TouchableOpacity onPress={onClose}><Ionicons name="close" size={26} color={colores.textoPrincipal} /></TouchableOpacity>
+          </View>
+
+          <View style={estilosModal.mediaFila}>
+            <Text style={[estilosModal.mediaNum, { color: colores.primario }]}>{vm.media ?? '—'}</Text>
+            <View>
+              <View style={{ flexDirection: 'row', gap: 4, marginBottom: 4 }}>
+                {[1,2,3,4,5].map(n => (
+                  <Ionicons key={n} name={n <= Math.round(parseFloat(vm.media ?? '0')) ? 'star' : 'star-outline'} size={20} color="#FFD700" />
+                ))}
+              </View>
+              <Text style={{ color: colores.textoSecundario, fontSize: 12 }}>{vm.valoraciones.length} valoraciones</Text>
+            </View>
+          </View>
+
+          <Text style={[estilosModal.seccion, { color: colores.textoSecundario }]}>TU VALORACIÓN</Text>
+          <View style={{ flexDirection: 'row', gap: 4, marginBottom: 12 }}>
+            {[1,2,3,4,5].map(n => (
+              <TouchableOpacity key={n} onPress={() => vm.setMiPuntuacion(n)}>
+                <Ionicons name={n <= vm.miPuntuacion ? 'star' : 'star-outline'} size={32} color="#FFD700" />
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TextInput
+            style={[estilosModal.input, { backgroundColor: colores.fondoSecundario, color: colores.textoPrincipal }]}
+            placeholder="Escribe un comentario (opcional)"
+            placeholderTextColor={colores.textoSecundario}
+            value={vm.miComentario}
+            onChangeText={vm.setMiComentario}
+            multiline
+            numberOfLines={2}
+          />
+          <TouchableOpacity style={[estilosModal.boton, { backgroundColor: colores.primario }]} onPress={handleEnviar} disabled={vm.enviando}>
+            {vm.enviando ? <ActivityIndicator color="#FFF" /> : <Text style={estilosModal.botonTexto}>Enviar valoración</Text>}
+          </TouchableOpacity>
+
+          {vm.valoraciones.length > 0 && (
+            <>
+              <Text style={[estilosModal.seccion, { color: colores.textoSecundario, marginTop: 20 }]}>RESEÑAS</Text>
+              <ScrollView style={{ maxHeight: 160 }} showsVerticalScrollIndicator={false}>
+                {vm.valoraciones.map((v: any) => (
+                  <View key={v.id} style={[estilosModal.resena, { backgroundColor: colores.fondoSecundario }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Text style={{ color: colores.textoPrincipal, fontWeight: '700', fontSize: 13 }}>{v.usuario_nombre}</Text>
+                      <View style={{ flexDirection: 'row' }}>
+                        {[1,2,3,4,5].map(n => <Ionicons key={n} name={n <= v.puntuacion ? 'star' : 'star-outline'} size={12} color="#FFD700" />)}
+                      </View>
+                    </View>
+                    {v.comentario ? <Text style={{ color: colores.textoSecundario, fontSize: 12 }}>{v.comentario}</Text> : null}
+                    <Text style={{ color: colores.textoSecundario, fontSize: 10, marginTop: 4 }}>{v.fecha}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const estilosModal = StyleSheet.create({
+  contenedor: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '85%' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  titulo: { fontSize: 17, fontWeight: '800', flex: 1, marginRight: 10 },
+  mediaFila: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)' },
+  mediaNum: { fontSize: 42, fontWeight: '900' },
+  seccion: { fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 10 },
+  input: { borderRadius: 10, padding: 12, marginBottom: 12, minHeight: 60, textAlignVertical: 'top' },
+  boton: { padding: 14, borderRadius: 12, alignItems: 'center' },
+  botonTexto: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  resena: { borderRadius: 10, padding: 12, marginBottom: 8 },
+});
 
 const styles = StyleSheet.create({
   contenedor: { flex: 1 },

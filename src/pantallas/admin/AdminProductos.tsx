@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView, Modal, TextInput, ScrollView, Image, Platform, StatusBar } from 'react-native';
 import { useTema } from '../../navegacion/NavegacionRaiz';
 import { useAdminProductosViewModel } from '../../viewmodels/AdminProductosViewModel';
+import { useValoracionesViewModel } from '../../viewmodels/ValoracionesViewModel';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import Toolbar from '../../componentes/Toolbar';
 
@@ -10,6 +11,8 @@ export default function AdminProductos() {
   const { productos, loading, load, saveProduct, deleteProduct } = useAdminProductosViewModel();
   const [modalVisible, setModalVisible] = useState(false);
   const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [productoValoracion, setProductoValoracion] = useState<any>(null);
+  const [modalValoracionesVisible, setModalValoracionesVisible] = useState(false);
 
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -82,6 +85,9 @@ export default function AdminProductos() {
         <Text style={[styles.stock, { color: colores.textoSecundario }]}>Stock: {item.stock}</Text>
       </View>
       <View style={styles.acciones}>
+        <TouchableOpacity onPress={() => { setProductoValoracion(item); setModalValoracionesVisible(true); }} style={styles.botonAccion}>
+          <Ionicons name="star-outline" size={22} color="#FFD700" />
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => abrirModal(item)} style={styles.botonAccion}>
           <Ionicons name="create-outline" size={22} color={colores.primario} />
         </TouchableOpacity>
@@ -174,9 +180,99 @@ export default function AdminProductos() {
           </View>
         </View>
       </Modal>
+      <ModalValoracionesAdmin
+        producto={productoValoracion}
+        visible={modalValoracionesVisible}
+        onClose={() => setModalValoracionesVisible(false)}
+        colores={colores}
+      />
     </SafeAreaView>
   );
 }
+
+function ModalValoracionesAdmin({ producto, visible, onClose, colores }: any) {
+  const vm = useValoracionesViewModel(producto?.id?.toString() ?? '');
+
+  useEffect(() => {
+    if (visible && producto?.id) vm.load();
+  }, [visible, producto?.id]);
+
+  if (!producto) return null;
+
+  return (
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+        <View style={[stylesVal.contenedor, { backgroundColor: colores.fondoPrincipal }]}>
+          <View style={stylesVal.header}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <Text style={[stylesVal.titulo, { color: colores.textoPrincipal }]} numberOfLines={1}>{producto.nombre}</Text>
+              <Text style={[stylesVal.subtitulo, { color: colores.textoSecundario }]}>Valoraciones de usuarios</Text>
+            </View>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={26} color={colores.textoPrincipal} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={stylesVal.mediaFila}>
+            <Text style={[stylesVal.mediaNum, { color: colores.primario }]}>{vm.media ?? '—'}</Text>
+            <View>
+              <View style={{ flexDirection: 'row', gap: 4, marginBottom: 4 }}>
+                {[1,2,3,4,5].map(n => (
+                  <Ionicons key={n} name={n <= Math.round(parseFloat(vm.media ?? '0')) ? 'star' : 'star-outline'} size={20} color="#FFD700" />
+                ))}
+              </View>
+              <Text style={{ color: colores.textoSecundario, fontSize: 13 }}>
+                {vm.valoraciones.length} {vm.valoraciones.length === 1 ? 'valoración' : 'valoraciones'}
+              </Text>
+            </View>
+          </View>
+
+          {vm.loading ? (
+            <ActivityIndicator color={colores.primario} style={{ marginTop: 20 }} />
+          ) : vm.valoraciones.length === 0 ? (
+            <View style={stylesVal.vacio}>
+              <Ionicons name="star-outline" size={40} color={colores.textoSecundario} />
+              <Text style={[stylesVal.vacioTexto, { color: colores.textoSecundario }]}>Sin valoraciones todavía</Text>
+            </View>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {vm.valoraciones.map((v: any) => (
+                <View key={v.id} style={[stylesVal.resena, { backgroundColor: colores.fondoSecundario }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={{ color: colores.textoPrincipal, fontWeight: '700', fontSize: 14 }}>{v.usuario_nombre}</Text>
+                    <View style={{ flexDirection: 'row', gap: 2 }}>
+                      {[1,2,3,4,5].map(n => (
+                        <Ionicons key={n} name={n <= v.puntuacion ? 'star' : 'star-outline'} size={13} color="#FFD700" />
+                      ))}
+                    </View>
+                  </View>
+                  {v.comentario ? (
+                    <Text style={{ color: colores.textoSecundario, fontSize: 13, lineHeight: 18 }}>{v.comentario}</Text>
+                  ) : (
+                    <Text style={{ color: colores.textoSecundario, fontSize: 12, fontStyle: 'italic' }}>Sin comentario</Text>
+                  )}
+                  <Text style={{ color: colores.textoSecundario, fontSize: 11, marginTop: 6 }}>{v.fecha}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const stylesVal = StyleSheet.create({
+  contenedor: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, maxHeight: '80%' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
+  titulo: { fontSize: 17, fontWeight: '800' },
+  subtitulo: { fontSize: 12, marginTop: 2 },
+  mediaFila: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(128,128,128,0.15)' },
+  mediaNum: { fontSize: 42, fontWeight: '900' },
+  resena: { borderRadius: 12, padding: 14, marginBottom: 10 },
+  vacio: { alignItems: 'center', paddingVertical: 40, gap: 10 },
+  vacioTexto: { fontSize: 15, fontWeight: '600' },
+});
 
 const styles = StyleSheet.create({
   contenedor: { flex: 1 },
