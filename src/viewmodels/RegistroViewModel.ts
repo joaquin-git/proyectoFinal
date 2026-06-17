@@ -1,21 +1,6 @@
 import { useState } from 'react';
 import { RegistroService } from '../services/RegistroService';
-
-const validarEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-const validarDNI = (dni: string) => {
-  const regex = /^[0-9]{8}[A-Za-z]$/;
-  if (!regex.test(dni)) return false;
-  const letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
-  const numero = parseInt(dni.substring(0, 8), 10);
-  return letras[numero % 23].toUpperCase() === dni[8].toUpperCase();
-};
-
-const validarFecha = (fecha: string) =>
-  /^([0-2][0-9]|3[0-1])\/(0[1-9]|1[0-2])\/\d{4}$/.test(fecha);
-
-const validarContrasenaFuerte = (pass: string) =>
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(pass);
+import { validarEmail, validarDNI, validarFecha, validarContrasenaFuerte } from '../utils/validaciones';
 
 export const useRegistroViewModel = () => {
   const service = new RegistroService();
