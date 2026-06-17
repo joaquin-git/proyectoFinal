@@ -1,24 +1,12 @@
-/**
- * SERVICIO DE COMUNICACIÓN CON LA API (Frontend)
- * Este archivo centraliza todas las peticiones HTTP que la aplicación hace al servidor.
- * Usamos 'fetch' para enviar y recibir datos de la base de datos MySQL.
- */
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { serverConfig } from '../src/config/serverConfig';
 
-// Nota: BASE_URL es dinámico, se obtiene en cada llamada
 let BASE_URL: string = '';
 
-/**
- * Inicializa la URL base del servidor
- */
 export const initializeAPI = async () => {
   BASE_URL = await serverConfig.getBaseUrl();
 };
 
-/**
- * Obtiene la URL base actual
- */
 const getBaseUrl = async () => {
   if (!BASE_URL) {
     BASE_URL = await serverConfig.getBaseUrl();
@@ -26,9 +14,59 @@ const getBaseUrl = async () => {
   return BASE_URL;
 };
 
-// --- FUNCIONES DE USUARIO ---
+// ── AUTH HELPERS ──────────────────────────────────────────────────────────────
 
-// Registrar un nuevo perfil en la base de datos
+const getAuthToken = async (): Promise<string | null> =>
+  AsyncStorage.getItem('authToken');
+
+const intentarRefresh = async (): Promise<string | null> => {
+  try {
+    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    if (!refreshToken) return null;
+    const url = await getBaseUrl();
+    const res = await fetch(`${url}/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) {
+      await AsyncStorage.multiRemove(['authToken', 'refreshToken', 'usuarioRegistrado']);
+      return null;
+    }
+    const data = await res.json();
+    await AsyncStorage.setItem('authToken', data.token);
+    await AsyncStorage.setItem('refreshToken', data.refreshToken);
+    if (data.usuario) await AsyncStorage.setItem('usuarioRegistrado', JSON.stringify(data.usuario));
+    return data.token;
+  } catch {
+    return null;
+  }
+};
+
+// Fetch autenticado: añade el header Authorization y reintenta una vez si el token expiró
+const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401) {
+    const nuevoToken = await intentarRefresh();
+    if (nuevoToken) {
+      headers['Authorization'] = `Bearer ${nuevoToken}`;
+      res = await fetch(url, { ...options, headers });
+    }
+  }
+
+  return res;
+};
+
+// ── USUARIO ───────────────────────────────────────────────────────────────────
+
 export const registrarUsuario = async (datos: any) => {
   const url = await getBaseUrl();
   const res = await fetch(`${url}/registro`, {
@@ -41,7 +79,6 @@ export const registrarUsuario = async (datos: any) => {
   return data;
 };
 
-// Validar credenciales de acceso
 export const loginUsuario = async (identificador: string, contrasena: string) => {
   const url = await getBaseUrl();
   const res = await fetch(`${url}/login`, {
@@ -54,12 +91,10 @@ export const loginUsuario = async (identificador: string, contrasena: string) =>
   return data;
 };
 
-// Actualizar los datos personales o la foto del usuario
 export const actualizarUsuario = async (id: string | number, datos: any) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/usuarios/${id}`, {
+  const res = await apiFetch(`${url}/usuarios/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(datos),
   });
   const data = await res.json();
@@ -67,9 +102,8 @@ export const actualizarUsuario = async (id: string | number, datos: any) => {
   return data;
 };
 
-// --- FUNCIONES DE INSTALACIONES Y RESERVAS ---
+// ── INSTALACIONES ─────────────────────────────────────────────────────────────
 
-// Obtener todos los centros deportivos disponibles
 export const getInstalaciones = async () => {
   const url = await getBaseUrl();
   const res = await fetch(`${url}/instalaciones`);
@@ -78,12 +112,12 @@ export const getInstalaciones = async () => {
   return data;
 };
 
-// Crear una nueva reserva de pista
+// ── RESERVAS ──────────────────────────────────────────────────────────────────
+
 export const crearReserva = async (datos: any) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/reservas`, {
+  const res = await apiFetch(`${url}/reservas`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(datos),
   });
   const data = await res.json();
@@ -91,33 +125,27 @@ export const crearReserva = async (datos: any) => {
   return data;
 };
 
-// Consultar qué pistas y horas están ya pilladas para no duplicar reservas
 export const getReservasOcupadas = async (instalacionId: string | number, fecha: string, deporte: string) => {
   const url = await getBaseUrl();
   const fullUrl = `${url}/reservas/ocupadas?instalacion_id=${instalacionId}&fecha=${encodeURIComponent(fecha)}&deporte=${encodeURIComponent(deporte)}`;
-  const res = await fetch(fullUrl, {
-    headers: { 'Cache-Control': 'no-cache' }
-  });
+  const res = await fetch(fullUrl, { headers: { 'Cache-Control': 'no-cache' } });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detalle || data.error || 'Error desconocido');
   return data;
 };
 
-// Ver el historial de reservas de un usuario concreto
 export const getMisReservas = async (usuarioId: string | number) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/reservas/${usuarioId}`);
+  const res = await apiFetch(`${url}/reservas/${usuarioId}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.detalle || data.error || 'Error desconocido');
   return data;
 };
 
-// Modificar una reserva existente
 export const modificarReserva = async (id: string | number, nuevaData: any) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/reservas/${id}`, {
+  const res = await apiFetch(`${url}/reservas/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(nuevaData),
   });
   const data = await res.json();
@@ -125,18 +153,16 @@ export const modificarReserva = async (id: string | number, nuevaData: any) => {
   return data;
 };
 
-// Cancelar/Eliminar una reserva
 export const cancelarReserva = async (reservaId: string | number) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/reservas/${reservaId}`, { method: 'DELETE' });
+  const res = await apiFetch(`${url}/reservas/${reservaId}`, { method: 'DELETE' });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detalle || data.error || 'Error desconocido');
   return data;
 };
 
-// --- FUNCIONES DE TIENDA ---
+// ── TIENDA ────────────────────────────────────────────────────────────────────
 
-// Obtener catálogo de productos
 export const getProductos = async () => {
   const url = await getBaseUrl();
   const res = await fetch(`${url}/productos`);
@@ -145,12 +171,10 @@ export const getProductos = async () => {
   return data;
 };
 
-// Registrar una compra y descontar stock
 export const realizarCompra = async (datos: any) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/compras`, {
+  const res = await apiFetch(`${url}/compras`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(datos),
   });
   const data = await res.json();
@@ -158,81 +182,89 @@ export const realizarCompra = async (datos: any) => {
   return data;
 };
 
-// Eliminar/Devolver una compra de la base de datos
 export const devolverCompra = async (compraId: string | number) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/compras/${compraId}`, { method: 'DELETE' });
+  const res = await apiFetch(`${url}/compras/${compraId}`, { method: 'DELETE' });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detalle || data.error || 'Error desconocido');
   return data;
 };
 
-// --- FUNCIONES DE ADMINISTRACIÓN ---
+// ── ADMINISTRACIÓN ────────────────────────────────────────────────────────────
 
-// Obtener lista de todos los usuarios (solo para Admin)
 export const getAdminUsuarios = async () => {
-  const res = await fetch(`${BASE_URL}/admin/usuarios`);
+  const url = await getBaseUrl();
+  const res = await apiFetch(`${url}/admin/usuarios`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Error al obtener usuarios');
   return data;
 };
 
 export const eliminarUsuario = async (id: number | string) => {
-  const res = await fetch(`${BASE_URL}/admin/usuarios/${id}`, { method: 'DELETE' });
+  const url = await getBaseUrl();
+  const res = await apiFetch(`${url}/admin/usuarios/${id}`, { method: 'DELETE' });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Error al eliminar usuario');
   return data;
 };
 
-// Crear/Editar/Eliminar Productos (Panel Admin)
 export const crearProductoAdmin = async (datos: any) => {
-  const res = await fetch(`${BASE_URL}/admin/productos`, {
+  const url = await getBaseUrl();
+  const res = await apiFetch(`${url}/admin/productos`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(datos)
+    body: JSON.stringify(datos),
   });
   return await res.json();
 };
 
 export const editarProductoAdmin = async (id: number, datos: any) => {
-  const res = await fetch(`${BASE_URL}/admin/productos/${id}`, {
+  const url = await getBaseUrl();
+  const res = await apiFetch(`${url}/admin/productos/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(datos)
+    body: JSON.stringify(datos),
   });
   return await res.json();
 };
 
 export const eliminarProductoAdmin = async (id: number) => {
-  const res = await fetch(`${BASE_URL}/admin/productos/${id}`, { method: 'DELETE' });
+  const url = await getBaseUrl();
+  const res = await apiFetch(`${url}/admin/productos/${id}`, { method: 'DELETE' });
   return await res.json();
 };
 
-// Crear/Editar/Eliminar Instalaciones (Panel Admin)
 export const crearInstalacionAdmin = async (datos: any) => {
-  const res = await fetch(`${BASE_URL}/admin/instalaciones`, {
+  const url = await getBaseUrl();
+  const res = await apiFetch(`${url}/admin/instalaciones`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(datos)
+    body: JSON.stringify(datos),
   });
   return await res.json();
 };
 
 export const editarInstalacionAdmin = async (id: number, datos: any) => {
-  const res = await fetch(`${BASE_URL}/admin/instalaciones/${id}`, {
+  const url = await getBaseUrl();
+  const res = await apiFetch(`${url}/admin/instalaciones/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(datos)
+    body: JSON.stringify(datos),
   });
   return await res.json();
 };
 
 export const eliminarInstalacionAdmin = async (id: number) => {
-  const res = await fetch(`${BASE_URL}/admin/instalaciones/${id}`, { method: 'DELETE' });
+  const url = await getBaseUrl();
+  const res = await apiFetch(`${url}/admin/instalaciones/${id}`, { method: 'DELETE' });
   return await res.json();
 };
 
-// --- RECUPERACIÓN DE CONTRASEÑA ---
+export const getEstadisticasAdmin = async () => {
+  const url = await getBaseUrl();
+  const res = await apiFetch(`${url}/admin/estadisticas`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error desconocido');
+  return data;
+};
+
+// ── RECUPERACIÓN DE CONTRASEÑA ────────────────────────────────────────────────
 
 export const recuperarContrasena = async (email: string) => {
   const url = await getBaseUrl();
@@ -258,17 +290,7 @@ export const verificarRecuperacion = async (email: string, codigo: string, nueva
   return data;
 };
 
-// --- DASHBOARD ADMIN ---
-
-export const getEstadisticasAdmin = async () => {
-  const url = await getBaseUrl();
-  const res = await fetch(`${url}/admin/estadisticas`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error desconocido');
-  return data;
-};
-
-// --- VALORACIONES ---
+// ── VALORACIONES ──────────────────────────────────────────────────────────────
 
 export const getValoraciones = async (productoId: number | string) => {
   const url = await getBaseUrl();
@@ -280,17 +302,14 @@ export const getValoraciones = async (productoId: number | string) => {
 
 export const agregarValoracion = async (datos: any) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/valoraciones`, {
+  const res = await apiFetch(`${url}/valoraciones`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(datos),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Error desconocido');
   return data;
 };
-
-// --- VALORACIONES INSTALACIONES ---
 
 export const getValoracionesInstalacion = async (instalacionId: number | string) => {
   const url = await getBaseUrl();
@@ -307,9 +326,8 @@ export const getValoracionesInstalacion = async (instalacionId: number | string)
 
 export const agregarValoracionInstalacion = async (datos: any) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/valoraciones-instalaciones`, {
+  const res = await apiFetch(`${url}/valoraciones-instalaciones`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(datos),
   });
   const data = await res.json();
@@ -317,11 +335,11 @@ export const agregarValoracionInstalacion = async (datos: any) => {
   return data;
 };
 
-// --- FAVORITOS ---
+// ── FAVORITOS ─────────────────────────────────────────────────────────────────
 
 export const getFavoritosAPI = async (usuarioId: number | string) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/favoritos/${usuarioId}`);
+  const res = await apiFetch(`${url}/favoritos/${usuarioId}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Error desconocido');
   return data;
@@ -329,9 +347,8 @@ export const getFavoritosAPI = async (usuarioId: number | string) => {
 
 export const agregarFavoritoAPI = async (usuarioId: number | string, productoId: number | string) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/favoritos`, {
+  const res = await apiFetch(`${url}/favoritos`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ usuario_id: usuarioId, producto_id: productoId }),
   });
   const data = await res.json();
@@ -341,7 +358,7 @@ export const agregarFavoritoAPI = async (usuarioId: number | string, productoId:
 
 export const eliminarFavoritoAPI = async (usuarioId: number | string, productoId: number | string) => {
   const url = await getBaseUrl();
-  const res = await fetch(`${url}/favoritos/${usuarioId}/${productoId}`, { method: 'DELETE' });
+  const res = await apiFetch(`${url}/favoritos/${usuarioId}/${productoId}`, { method: 'DELETE' });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Error desconocido');
   return data;

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const { initDB, getPool } = require('./database');
 const {
     enviarConfirmacionReserva,
@@ -15,6 +16,29 @@ const {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'sportspace_jwt_secret_2025';
+
+// ── JWT HELPERS ───────────────────────────────────────────────────────────────
+
+function generarTokens(usuario) {
+    const payload = { id: usuario.id, email: usuario.email, rol: usuario.rol };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '2h' });
+    const refreshToken = jwt.sign({ id: usuario.id }, JWT_SECRET, { expiresIn: '7d' });
+    return { token, refreshToken };
+}
+
+function verificarToken(req, res, next) {
+    const auth = req.headers['authorization'];
+    if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+    try {
+        req.usuario = jwt.verify(auth.split(' ')[1], JWT_SECRET);
+        next();
+    } catch (e) {
+        res.status(401).json({ error: 'Token inválido o expirado' });
+    }
+}
+
+// ── CORS Y BODY PARSER ────────────────────────────────────────────────────────
 
 const corsOptions = {
   origin: '*',
@@ -68,6 +92,8 @@ app.use('/minijuego', express.static(path.join(__dirname, '../assets/minijuego')
   }
 }));
 
+// ── RUTAS PÚBLICAS ────────────────────────────────────────────────────────────
+
 app.get('/api/ping', (req, res) => {
     res.json({ status: 'ok', message: 'Servidor accesible' });
 });
@@ -115,8 +141,15 @@ app.post('/api/registro', async (req, res) => {
             'INSERT INTO usuarios (nombre, usuario, email, contrasena, telefono, direccion) VALUES (?, ?, ?, ?, ?, ?)',
             [nombre, usuario, email, hash, telefono || null, dirStr]
         );
+        const [newUser] = await pool.query('SELECT * FROM usuarios WHERE id = ?', [result.insertId]);
+        const u = newUser[0];
+        if (u.direccion && u.direccion !== '[object Object]') {
+            try { u.direccion = JSON.parse(u.direccion); } catch (e) {}
+        }
+        const { contrasena: _, ...userSinPassword } = u;
+        const tokens = generarTokens(userSinPassword);
         enviarBienvenida(email, nombre).catch(e => console.log('Error enviando email:', e));
-        res.status(201).json({ id: result.insertId });
+        res.status(201).json({ token: tokens.token, refreshToken: tokens.refreshToken, usuario: userSinPassword });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -149,25 +182,32 @@ app.post('/api/login', async (req, res) => {
             try { user.direccion = JSON.parse(user.direccion); } catch (e) {}
         }
         const { contrasena: _, ...userSinPassword } = user;
-        res.json(userSinPassword);
+        const tokens = generarTokens(userSinPassword);
+        res.json({ token: tokens.token, refreshToken: tokens.refreshToken, usuario: userSinPassword });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put('/api/usuarios/:id', async (req, res) => {
+app.post('/api/refresh-token', async (req, res) => {
     try {
-        const { nombre, usuario, email, contrasena, telefono, direccion, foto } = req.body;
-        const pool = getPool();
-        const dirStr = direccion && typeof direccion === 'object' ? JSON.stringify(direccion) : direccion;
-        let contrasenaFinal = contrasena;
-        if (contrasena && !contrasena.startsWith('$2b$')) {
-            contrasenaFinal = await bcrypt.hash(contrasena, 10);
+        const { refreshToken } = req.body;
+        if (!refreshToken) return res.status(401).json({ error: 'Refresh token requerido' });
+        let decoded;
+        try {
+            decoded = jwt.verify(refreshToken, JWT_SECRET);
+        } catch (e) {
+            return res.status(401).json({ error: 'Refresh token inválido o expirado' });
         }
-        await pool.query(
-            'UPDATE usuarios SET nombre=?, usuario=?, email=?, contrasena=?, telefono=?, direccion=?, foto=? WHERE id=?',
-            [nombre, usuario, email, contrasenaFinal, telefono, dirStr, foto, req.params.id]
-        );
-        res.json({ mensaje: 'Actualizado' });
-    } catch (err) { res.status(500).send(); }
+        const pool = getPool();
+        const [rows] = await pool.query('SELECT * FROM usuarios WHERE id = ?', [decoded.id]);
+        if (rows.length === 0) return res.status(401).json({ error: 'Usuario no encontrado' });
+        const u = rows[0];
+        if (u.direccion && u.direccion !== '[object Object]') {
+            try { u.direccion = JSON.parse(u.direccion); } catch (e) {}
+        }
+        const { contrasena: _, ...userSinPassword } = u;
+        const tokens = generarTokens(userSinPassword);
+        res.json({ token: tokens.token, refreshToken: tokens.refreshToken, usuario: userSinPassword });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/instalaciones', async (req, res) => {
@@ -187,27 +227,6 @@ app.get('/api/productos', async (req, res) => {
     } catch (err) { res.status(500).send(); }
 });
 
-app.post('/api/reservas', async (req, res) => {
-    try {
-        const { usuario_id, instalacion_id, deporte, pista, fecha, hora, precio } = req.body;
-        const pool = getPool();
-        const [result] = await pool.query(
-            'INSERT INTO reservas (usuario_id, instalacion_id, deporte, pista, fecha, hora, precio) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [usuario_id, instalacion_id, deporte, pista, fecha, hora, precio]
-        );
-        pool.query('SELECT nombre, email FROM usuarios WHERE id=?', [usuario_id]).then(([u]) => {
-            if (u && u.length > 0 && u[0].email) {
-                pool.query('SELECT nombre FROM instalaciones WHERE id=?', [instalacion_id]).then(([i]) => {
-                    enviarConfirmacionReserva(u[0].email, {
-                        nombre: u[0].nombre, deporte, pista, fecha, hora, precio, instalacion: i[0]?.nombre || 'Centro Deportivo'
-                    }).catch(e => console.log('Error enviando email:', e));
-                });
-            }
-        });
-        res.status(201).json({ id: result.insertId });
-    } catch (err) { res.status(500).send(); }
-});
-
 app.get('/api/reservas/ocupadas', async (req, res) => {
     try {
         const { instalacion_id, fecha, deporte } = req.query;
@@ -220,192 +239,31 @@ app.get('/api/reservas/ocupadas', async (req, res) => {
     } catch (err) { res.status(500).send(); }
 });
 
-app.get('/api/reservas/:usuarioId', async (req, res) => {
+app.get('/api/valoraciones/:productoId', async (req, res) => {
     try {
         const pool = getPool();
         const [rows] = await pool.query(`
-            SELECT r.*, i.nombre as centro_nombre, i.direccion as centro_direccion, i.imagen as centro_imagen
-            FROM reservas r
-            LEFT JOIN instalaciones i ON r.instalacion_id = i.id
-            WHERE r.usuario_id = ?
-            ORDER BY r.id DESC
-        `, [req.params.usuarioId]);
-        res.json(rows);
-    } catch (err) { res.status(500).send(); }
-});
-
-app.put('/api/reservas/:id', async (req, res) => {
-    try {
-        const { instalacion_id, deporte, pista, fecha, hora, precio } = req.body;
-        const pool = getPool();
-        await pool.query(
-            'UPDATE reservas SET instalacion_id=?, deporte=?, pista=?, fecha=?, hora=?, precio=? WHERE id=?',
-            [instalacion_id, deporte, pista, fecha, hora, precio, req.params.id]
-        );
-        res.json({ mensaje: 'Reserva actualizada' });
+            SELECT v.*, u.nombre AS usuario_nombre
+            FROM valoraciones v JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.producto_id = ? ORDER BY v.id DESC
+        `, [req.params.productoId]);
+        const [[{ media }]] = await pool.query('SELECT AVG(puntuacion) AS media FROM valoraciones WHERE producto_id = ?', [req.params.productoId]);
+        res.json({ valoraciones: rows, media: media ? parseFloat(media).toFixed(1) : null });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.delete('/api/reservas/:id', async (req, res) => {
+app.get('/api/valoraciones-instalaciones/:instalacionId', async (req, res) => {
     try {
         const pool = getPool();
-        const [reservaRows] = await pool.query(
-            'SELECT r.*, u.email, u.nombre FROM reservas r LEFT JOIN usuarios u ON r.usuario_id = u.id WHERE r.id = ?',
-            [req.params.id]
-        );
-        await pool.query('DELETE FROM reservas WHERE id = ?', [req.params.id]);
-        if (reservaRows.length > 0 && reservaRows[0].email) {
-            const r = reservaRows[0];
-            enviarCancelacionReserva(r.email, {
-                nombre: r.nombre, deporte: r.deporte, pista: r.pista, fecha: r.fecha, hora: r.hora
-            }).catch(e => console.log('Error enviando email cancelación:', e));
-        }
-        res.json({ mensaje: 'Borrado' });
-    } catch (err) { res.status(500).send(); }
-});
-
-app.post('/api/compras', async (req, res) => {
-    try {
-        const { usuario_id, producto_id, cantidad, fecha, total, metodoPago } = req.body;
-        const pool = getPool();
-        await pool.query('UPDATE productos SET stock = stock - ? WHERE id = ?', [cantidad, producto_id]);
-        const [result] = await pool.query('INSERT INTO compras (usuario_id, producto_id, cantidad, fecha, total) VALUES (?,?,?,?,?)', [usuario_id, producto_id, cantidad, fecha, total]);
-        Promise.all([
-            pool.query('SELECT nombre, email FROM usuarios WHERE id=?', [usuario_id]),
-            pool.query('SELECT nombre, precio FROM productos WHERE id=?', [producto_id])
-        ]).then(([[u], [p]]) => {
-            if (u && u.length > 0 && p && p.length > 0 && u[0].email) {
-                enviarConfirmacionCompra(u[0].email, {
-                    nombre: u[0].nombre,
-                    productos: [{ nombre: p[0].nombre, precio: parseFloat(p[0].precio) }],
-                    total: parseFloat(total),
-                    metodoPago: metodoPago || 'Tarjeta',
-                    fecha: fecha || new Date().toLocaleDateString('es-ES')
-                }).catch(e => console.log('Error enviando email compra:', e));
-            }
-        }).catch(() => {});
-        res.status(201).json({ id: result.insertId });
-    } catch (err) { res.status(500).send(); }
-});
-
-app.delete('/api/compras/:id', async (req, res) => {
-    try {
-        const pool = getPool();
-        const [rows] = await pool.query(
-            'SELECT c.*, p.nombre as producto_nombre, p.precio as producto_precio, u.email, u.nombre as usuario_nombre FROM compras c LEFT JOIN productos p ON c.producto_id = p.id LEFT JOIN usuarios u ON c.usuario_id = u.id WHERE c.id = ?',
-            [req.params.id]
-        );
-
-        if (rows.length > 0) {
-            const c = rows[0];
-            await pool.query('UPDATE productos SET stock = stock + ? WHERE id = ?', [c.cantidad, c.producto_id]);
-            await pool.query('DELETE FROM compras WHERE id = ?', [req.params.id]);
-            if (c.email) {
-                enviarConfirmacionDevolucion(c.email, {
-                    nombre: c.usuario_nombre,
-                    productos: `${c.producto_nombre} (x${c.cantidad})`,
-                    total: parseFloat(c.total),
-                    fecha: new Date().toLocaleDateString('es-ES')
-                }).catch(e => console.log('Error enviando email devolución:', e));
-            }
-            res.json({ mensaje: 'Compra devuelta y stock restaurado' });
-        } else {
-            res.status(404).json({ error: 'Compra no encontrada' });
-        }
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.get('/api/admin/usuarios', async (req, res) => {
-    try {
-        const pool = getPool();
-        const [rows] = await pool.query('SELECT * FROM usuarios');
-        const data = rows.map(u => {
-            if (u.direccion && u.direccion !== '[object Object]') {
-                try { u.direccion = JSON.parse(u.direccion); } catch (e) {}
-            }
-            return u;
-        });
-        res.json(data);
-    } catch (err) { res.status(500).send(); }
-});
-
-app.delete('/api/admin/usuarios/:id', async (req, res) => {
-    try {
-        const pool = getPool();
-        await pool.query('DELETE FROM usuarios WHERE id = ?', [req.params.id]);
-        res.json({ mensaje: 'Usuario eliminado' });
+        const [rows] = await pool.query(`
+            SELECT v.*, u.nombre AS usuario_nombre
+            FROM valoraciones_instalaciones v JOIN usuarios u ON v.usuario_id = u.id
+            WHERE v.instalacion_id = ? ORDER BY v.id DESC
+        `, [req.params.instalacionId]);
+        const [[{ media }]] = await pool.query('SELECT AVG(puntuacion) AS media FROM valoraciones_instalaciones WHERE instalacion_id = ?', [req.params.instalacionId]);
+        res.json({ valoraciones: rows, media: media ? parseFloat(media).toFixed(1) : null });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
-app.post('/api/admin/productos', async (req, res) => {
-    try {
-        const { nombre, descripcion, precio, stock, imagen, categoria } = req.body;
-        const pool = getPool();
-        await pool.query('INSERT INTO productos (nombre, descripcion, precio, stock, imagen, categoria) VALUES (?,?,?,?,?,?)', [nombre, descripcion, precio, stock, imagen, categoria]);
-        res.status(201).json({ mensaje: 'Producto creado' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.put('/api/admin/productos/:id', async (req, res) => {
-    try {
-        const { nombre, descripcion, precio, stock, imagen, categoria } = req.body;
-        const pool = getPool();
-        await pool.query('UPDATE productos SET nombre=?, descripcion=?, precio=?, stock=?, imagen=?, categoria=? WHERE id=?', [nombre, descripcion, precio, stock, imagen, categoria, req.params.id]);
-        res.json({ mensaje: 'Actualizado' });
-    } catch (err) { res.status(500).send(); }
-});
-
-app.delete('/api/admin/productos/:id', async (req, res) => {
-    try {
-        const pool = getPool();
-        await pool.query('DELETE FROM productos WHERE id = ?', [req.params.id]);
-        res.json({ mensaje: 'Eliminado' });
-    } catch (err) { res.status(500).send(); }
-});
-
-app.post('/api/admin/instalaciones', async (req, res) => {
-    try {
-        let { nombre, direccion, deportes, horario, puntuacion, web, instagram, imagen, latitud, longitud, googleMapsUrl } = req.body;
-        if (googleMapsUrl && googleMapsUrl.startsWith('http')) {
-            const coords = await extraerCoordenadasDeUrl(googleMapsUrl);
-            if (coords) { latitud = coords.lat; longitud = coords.lng; }
-        }
-        const pool = getPool();
-        await pool.query(
-            'INSERT INTO instalaciones (nombre, direccion, deportes, horario, puntuacion, web, instagram, imagen, latitud, longitud) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [nombre, direccion, JSON.stringify(deportes), horario, puntuacion, web, instagram, imagen, latitud || 0, longitud || 0]
-        );
-        res.status(201).json({ mensaje: 'Instalación creada' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.put('/api/admin/instalaciones/:id', async (req, res) => {
-    try {
-        let { nombre, direccion, deportes, horario, puntuacion, web, instagram, imagen, latitud, longitud, googleMapsUrl } = req.body;
-        if (googleMapsUrl && googleMapsUrl.startsWith('http')) {
-            const coords = await extraerCoordenadasDeUrl(googleMapsUrl);
-            if (coords) { latitud = coords.lat; longitud = coords.lng; }
-        }
-        const pool = getPool();
-        await pool.query(
-            'UPDATE instalaciones SET nombre=?, direccion=?, deportes=?, horario=?, puntuacion=?, web=?, instagram=?, imagen=?, latitud=?, longitud=? WHERE id=?',
-            [nombre, direccion, JSON.stringify(deportes), horario, puntuacion, web, instagram, imagen, latitud, longitud, req.params.id]
-        );
-        res.json({ mensaje: 'Actualizada' });
-    } catch (err) { res.status(500).send(); }
-});
-
-app.delete('/api/admin/instalaciones/:id', async (req, res) => {
-    try {
-        const pool = getPool();
-        await pool.query('DELETE FROM instalaciones WHERE id = ?', [req.params.id]);
-        res.json({ mensaje: 'Eliminada' });
-    } catch (err) { res.status(500).send(); }
-});
-
-// ── RECUPERACIÓN DE CONTRASEÑA ────────────────────────────────────────────────
 
 app.post('/api/recuperar-contrasena', async (req, res) => {
     try {
@@ -443,9 +301,197 @@ app.post('/api/recuperar-contrasena/verificar', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── DASHBOARD ADMIN ───────────────────────────────────────────────────────────
+// ── RUTAS PROTEGIDAS (requieren JWT) ─────────────────────────────────────────
 
-app.get('/api/admin/estadisticas', async (req, res) => {
+app.put('/api/usuarios/:id', verificarToken, async (req, res) => {
+    try {
+        const { nombre, usuario, email, contrasena, telefono, direccion, foto } = req.body;
+        const pool = getPool();
+        const dirStr = direccion && typeof direccion === 'object' ? JSON.stringify(direccion) : direccion;
+        let contrasenaFinal = contrasena;
+        if (contrasena && !contrasena.startsWith('$2b$')) {
+            contrasenaFinal = await bcrypt.hash(contrasena, 10);
+        }
+        await pool.query(
+            'UPDATE usuarios SET nombre=?, usuario=?, email=?, contrasena=?, telefono=?, direccion=?, foto=? WHERE id=?',
+            [nombre, usuario, email, contrasenaFinal, telefono, dirStr, foto, req.params.id]
+        );
+        res.json({ mensaje: 'Actualizado' });
+    } catch (err) { res.status(500).send(); }
+});
+
+app.post('/api/reservas', verificarToken, async (req, res) => {
+    try {
+        const { usuario_id, instalacion_id, deporte, pista, fecha, hora, precio } = req.body;
+        const pool = getPool();
+        const [result] = await pool.query(
+            'INSERT INTO reservas (usuario_id, instalacion_id, deporte, pista, fecha, hora, precio) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [usuario_id, instalacion_id, deporte, pista, fecha, hora, precio]
+        );
+        pool.query('SELECT nombre, email FROM usuarios WHERE id=?', [usuario_id]).then(([u]) => {
+            if (u && u.length > 0 && u[0].email) {
+                pool.query('SELECT nombre FROM instalaciones WHERE id=?', [instalacion_id]).then(([i]) => {
+                    enviarConfirmacionReserva(u[0].email, {
+                        nombre: u[0].nombre, deporte, pista, fecha, hora, precio, instalacion: i[0]?.nombre || 'Centro Deportivo'
+                    }).catch(e => console.log('Error enviando email:', e));
+                });
+            }
+        });
+        res.status(201).json({ id: result.insertId });
+    } catch (err) { res.status(500).send(); }
+});
+
+app.get('/api/reservas/:usuarioId', verificarToken, async (req, res) => {
+    try {
+        const pool = getPool();
+        const [rows] = await pool.query(`
+            SELECT r.*, i.nombre as centro_nombre, i.direccion as centro_direccion, i.imagen as centro_imagen
+            FROM reservas r
+            LEFT JOIN instalaciones i ON r.instalacion_id = i.id
+            WHERE r.usuario_id = ?
+            ORDER BY r.id DESC
+        `, [req.params.usuarioId]);
+        res.json(rows);
+    } catch (err) { res.status(500).send(); }
+});
+
+app.put('/api/reservas/:id', verificarToken, async (req, res) => {
+    try {
+        const { instalacion_id, deporte, pista, fecha, hora, precio } = req.body;
+        const pool = getPool();
+        await pool.query(
+            'UPDATE reservas SET instalacion_id=?, deporte=?, pista=?, fecha=?, hora=?, precio=? WHERE id=?',
+            [instalacion_id, deporte, pista, fecha, hora, precio, req.params.id]
+        );
+        res.json({ mensaje: 'Reserva actualizada' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/reservas/:id', verificarToken, async (req, res) => {
+    try {
+        const pool = getPool();
+        const [reservaRows] = await pool.query(
+            'SELECT r.*, u.email, u.nombre FROM reservas r LEFT JOIN usuarios u ON r.usuario_id = u.id WHERE r.id = ?',
+            [req.params.id]
+        );
+        await pool.query('DELETE FROM reservas WHERE id = ?', [req.params.id]);
+        if (reservaRows.length > 0 && reservaRows[0].email) {
+            const r = reservaRows[0];
+            enviarCancelacionReserva(r.email, {
+                nombre: r.nombre, deporte: r.deporte, pista: r.pista, fecha: r.fecha, hora: r.hora
+            }).catch(e => console.log('Error enviando email cancelación:', e));
+        }
+        res.json({ mensaje: 'Borrado' });
+    } catch (err) { res.status(500).send(); }
+});
+
+app.post('/api/compras', verificarToken, async (req, res) => {
+    try {
+        const { usuario_id, producto_id, cantidad, fecha, total, metodoPago } = req.body;
+        const pool = getPool();
+        await pool.query('UPDATE productos SET stock = stock - ? WHERE id = ?', [cantidad, producto_id]);
+        const [result] = await pool.query('INSERT INTO compras (usuario_id, producto_id, cantidad, fecha, total) VALUES (?,?,?,?,?)', [usuario_id, producto_id, cantidad, fecha, total]);
+        Promise.all([
+            pool.query('SELECT nombre, email FROM usuarios WHERE id=?', [usuario_id]),
+            pool.query('SELECT nombre, precio FROM productos WHERE id=?', [producto_id])
+        ]).then(([[u], [p]]) => {
+            if (u && u.length > 0 && p && p.length > 0 && u[0].email) {
+                enviarConfirmacionCompra(u[0].email, {
+                    nombre: u[0].nombre,
+                    productos: [{ nombre: p[0].nombre, precio: parseFloat(p[0].precio) }],
+                    total: parseFloat(total),
+                    metodoPago: metodoPago || 'Tarjeta',
+                    fecha: fecha || new Date().toLocaleDateString('es-ES')
+                }).catch(e => console.log('Error enviando email compra:', e));
+            }
+        }).catch(() => {});
+        res.status(201).json({ id: result.insertId });
+    } catch (err) { res.status(500).send(); }
+});
+
+app.delete('/api/compras/:id', verificarToken, async (req, res) => {
+    try {
+        const pool = getPool();
+        const [rows] = await pool.query(
+            'SELECT c.*, p.nombre as producto_nombre, p.precio as producto_precio, u.email, u.nombre as usuario_nombre FROM compras c LEFT JOIN productos p ON c.producto_id = p.id LEFT JOIN usuarios u ON c.usuario_id = u.id WHERE c.id = ?',
+            [req.params.id]
+        );
+
+        if (rows.length > 0) {
+            const c = rows[0];
+            await pool.query('UPDATE productos SET stock = stock + ? WHERE id = ?', [c.cantidad, c.producto_id]);
+            await pool.query('DELETE FROM compras WHERE id = ?', [req.params.id]);
+            if (c.email) {
+                enviarConfirmacionDevolucion(c.email, {
+                    nombre: c.usuario_nombre,
+                    productos: `${c.producto_nombre} (x${c.cantidad})`,
+                    total: parseFloat(c.total),
+                    fecha: new Date().toLocaleDateString('es-ES')
+                }).catch(e => console.log('Error enviando email devolución:', e));
+            }
+            res.json({ mensaje: 'Compra devuelta y stock restaurado' });
+        } else {
+            res.status(404).json({ error: 'Compra no encontrada' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/valoraciones', verificarToken, async (req, res) => {
+    try {
+        const { usuario_id, producto_id, puntuacion, comentario, fecha } = req.body;
+        const pool = getPool();
+        await pool.query(
+            'INSERT INTO valoraciones (usuario_id, producto_id, puntuacion, comentario, fecha) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE puntuacion=?, comentario=?, fecha=?',
+            [usuario_id, producto_id, puntuacion, comentario, fecha, puntuacion, comentario, fecha]
+        );
+        res.status(201).json({ mensaje: 'Valoración guardada' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/valoraciones-instalaciones', verificarToken, async (req, res) => {
+    try {
+        const { usuario_id, instalacion_id, puntuacion, comentario, fecha } = req.body;
+        const pool = getPool();
+        await pool.query(
+            'INSERT INTO valoraciones_instalaciones (usuario_id, instalacion_id, puntuacion, comentario, fecha) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE puntuacion=?, comentario=?, fecha=?',
+            [usuario_id, instalacion_id, puntuacion, comentario, fecha, puntuacion, comentario, fecha]
+        );
+        res.status(201).json({ mensaje: 'Valoración guardada' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/favoritos/:usuarioId', verificarToken, async (req, res) => {
+    try {
+        const pool = getPool();
+        const [rows] = await pool.query(`
+            SELECT p.* FROM favoritos f JOIN productos p ON f.producto_id = p.id WHERE f.usuario_id = ?
+        `, [req.params.usuarioId]);
+        res.json(rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/favoritos', verificarToken, async (req, res) => {
+    try {
+        const { usuario_id, producto_id } = req.body;
+        const pool = getPool();
+        await pool.query('INSERT IGNORE INTO favoritos (usuario_id, producto_id) VALUES (?, ?)', [usuario_id, producto_id]);
+        res.status(201).json({ mensaje: 'Añadido a favoritos' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/favoritos/:usuarioId/:productoId', verificarToken, async (req, res) => {
+    try {
+        const pool = getPool();
+        await pool.query('DELETE FROM favoritos WHERE usuario_id = ? AND producto_id = ?', [req.params.usuarioId, req.params.productoId]);
+        res.json({ mensaje: 'Eliminado de favoritos' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── PANEL DE ADMINISTRACIÓN (rutas protegidas) ────────────────────────────────
+
+app.get('/api/admin/estadisticas', verificarToken, async (req, res) => {
     try {
         const pool = getPool();
         const [[{ totalUsuarios }]] = await pool.query('SELECT COUNT(*) AS totalUsuarios FROM usuarios WHERE rol != "admin"');
@@ -463,94 +509,101 @@ app.get('/api/admin/estadisticas', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── VALORACIONES ──────────────────────────────────────────────────────────────
-
-app.get('/api/valoraciones/:productoId', async (req, res) => {
+app.get('/api/admin/usuarios', verificarToken, async (req, res) => {
     try {
         const pool = getPool();
-        const [rows] = await pool.query(`
-            SELECT v.*, u.nombre AS usuario_nombre
-            FROM valoraciones v JOIN usuarios u ON v.usuario_id = u.id
-            WHERE v.producto_id = ? ORDER BY v.id DESC
-        `, [req.params.productoId]);
-        const [[{ media }]] = await pool.query('SELECT AVG(puntuacion) AS media FROM valoraciones WHERE producto_id = ?', [req.params.productoId]);
-        res.json({ valoraciones: rows, media: media ? parseFloat(media).toFixed(1) : null });
+        const [rows] = await pool.query('SELECT * FROM usuarios');
+        const data = rows.map(u => {
+            if (u.direccion && u.direccion !== '[object Object]') {
+                try { u.direccion = JSON.parse(u.direccion); } catch (e) {}
+            }
+            return u;
+        });
+        res.json(data);
+    } catch (err) { res.status(500).send(); }
+});
+
+app.delete('/api/admin/usuarios/:id', verificarToken, async (req, res) => {
+    try {
+        const pool = getPool();
+        await pool.query('DELETE FROM usuarios WHERE id = ?', [req.params.id]);
+        res.json({ mensaje: 'Usuario eliminado' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/valoraciones', async (req, res) => {
+app.post('/api/admin/productos', verificarToken, async (req, res) => {
     try {
-        const { usuario_id, producto_id, puntuacion, comentario, fecha } = req.body;
+        const { nombre, descripcion, precio, stock, imagen, categoria } = req.body;
+        const pool = getPool();
+        await pool.query('INSERT INTO productos (nombre, descripcion, precio, stock, imagen, categoria) VALUES (?,?,?,?,?,?)', [nombre, descripcion, precio, stock, imagen, categoria]);
+        res.status(201).json({ mensaje: 'Producto creado' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/productos/:id', verificarToken, async (req, res) => {
+    try {
+        const { nombre, descripcion, precio, stock, imagen, categoria } = req.body;
+        const pool = getPool();
+        await pool.query('UPDATE productos SET nombre=?, descripcion=?, precio=?, stock=?, imagen=?, categoria=? WHERE id=?', [nombre, descripcion, precio, stock, imagen, categoria, req.params.id]);
+        res.json({ mensaje: 'Actualizado' });
+    } catch (err) { res.status(500).send(); }
+});
+
+app.delete('/api/admin/productos/:id', verificarToken, async (req, res) => {
+    try {
+        const pool = getPool();
+        await pool.query('DELETE FROM productos WHERE id = ?', [req.params.id]);
+        res.json({ mensaje: 'Eliminado' });
+    } catch (err) { res.status(500).send(); }
+});
+
+app.post('/api/admin/instalaciones', verificarToken, async (req, res) => {
+    try {
+        let { nombre, direccion, deportes, horario, puntuacion, web, instagram, imagen, latitud, longitud, googleMapsUrl } = req.body;
+        if (googleMapsUrl && googleMapsUrl.startsWith('http')) {
+            const coords = await extraerCoordenadasDeUrl(googleMapsUrl);
+            if (coords) { latitud = coords.lat; longitud = coords.lng; }
+        }
         const pool = getPool();
         await pool.query(
-            'INSERT INTO valoraciones (usuario_id, producto_id, puntuacion, comentario, fecha) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE puntuacion=?, comentario=?, fecha=?',
-            [usuario_id, producto_id, puntuacion, comentario, fecha, puntuacion, comentario, fecha]
+            'INSERT INTO instalaciones (nombre, direccion, deportes, horario, puntuacion, web, instagram, imagen, latitud, longitud) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [nombre, direccion, JSON.stringify(deportes), horario, puntuacion, web, instagram, imagen, latitud || 0, longitud || 0]
         );
-        res.status(201).json({ mensaje: 'Valoración guardada' });
+        res.status(201).json({ mensaje: 'Instalación creada' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── VALORACIONES INSTALACIONES ────────────────────────────────────────────────
-
-app.get('/api/valoraciones-instalaciones/:instalacionId', async (req, res) => {
+app.put('/api/admin/instalaciones/:id', verificarToken, async (req, res) => {
     try {
-        const pool = getPool();
-        const [rows] = await pool.query(`
-            SELECT v.*, u.nombre AS usuario_nombre
-            FROM valoraciones_instalaciones v JOIN usuarios u ON v.usuario_id = u.id
-            WHERE v.instalacion_id = ? ORDER BY v.id DESC
-        `, [req.params.instalacionId]);
-        const [[{ media }]] = await pool.query('SELECT AVG(puntuacion) AS media FROM valoraciones_instalaciones WHERE instalacion_id = ?', [req.params.instalacionId]);
-        res.json({ valoraciones: rows, media: media ? parseFloat(media).toFixed(1) : null });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.post('/api/valoraciones-instalaciones', async (req, res) => {
-    try {
-        const { usuario_id, instalacion_id, puntuacion, comentario, fecha } = req.body;
+        let { nombre, direccion, deportes, horario, puntuacion, web, instagram, imagen, latitud, longitud, googleMapsUrl } = req.body;
+        if (googleMapsUrl && googleMapsUrl.startsWith('http')) {
+            const coords = await extraerCoordenadasDeUrl(googleMapsUrl);
+            if (coords) { latitud = coords.lat; longitud = coords.lng; }
+        }
         const pool = getPool();
         await pool.query(
-            'INSERT INTO valoraciones_instalaciones (usuario_id, instalacion_id, puntuacion, comentario, fecha) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE puntuacion=?, comentario=?, fecha=?',
-            [usuario_id, instalacion_id, puntuacion, comentario, fecha, puntuacion, comentario, fecha]
+            'UPDATE instalaciones SET nombre=?, direccion=?, deportes=?, horario=?, puntuacion=?, web=?, instagram=?, imagen=?, latitud=?, longitud=? WHERE id=?',
+            [nombre, direccion, JSON.stringify(deportes), horario, puntuacion, web, instagram, imagen, latitud, longitud, req.params.id]
         );
-        res.status(201).json({ mensaje: 'Valoración guardada' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        res.json({ mensaje: 'Actualizada' });
+    } catch (err) { res.status(500).send(); }
 });
 
-// ── FAVORITOS ─────────────────────────────────────────────────────────────────
-
-app.get('/api/favoritos/:usuarioId', async (req, res) => {
+app.delete('/api/admin/instalaciones/:id', verificarToken, async (req, res) => {
     try {
         const pool = getPool();
-        const [rows] = await pool.query(`
-            SELECT p.* FROM favoritos f JOIN productos p ON f.producto_id = p.id WHERE f.usuario_id = ?
-        `, [req.params.usuarioId]);
-        res.json(rows);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        await pool.query('DELETE FROM instalaciones WHERE id = ?', [req.params.id]);
+        res.json({ mensaje: 'Eliminada' });
+    } catch (err) { res.status(500).send(); }
 });
 
-app.post('/api/favoritos', async (req, res) => {
-    try {
-        const { usuario_id, producto_id } = req.body;
-        const pool = getPool();
-        await pool.query('INSERT IGNORE INTO favoritos (usuario_id, producto_id) VALUES (?, ?)', [usuario_id, producto_id]);
-        res.status(201).json({ mensaje: 'Añadido a favoritos' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.delete('/api/favoritos/:usuarioId/:productoId', async (req, res) => {
-    try {
-        const pool = getPool();
-        await pool.query('DELETE FROM favoritos WHERE usuario_id = ? AND producto_id = ?', [req.params.usuarioId, req.params.productoId]);
-        res.json({ mensaje: 'Eliminado de favoritos' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
+// ── ARRANQUE ──────────────────────────────────────────────────────────────────
 
 function obtenerIPsLocales() {
     const os = require('os');
     const interfaces = os.networkInterfaces();
     const ips = [];
-    
+
     for (const name of Object.keys(interfaces)) {
         for (const iface of interfaces[name]) {
             if (iface.family === 'IPv4' && !iface.internal) {
@@ -583,10 +636,6 @@ initDB().then(() => {
             console.log('   • No se encontraron interfaces de red locales');
         }
         console.log(`
-💡 Para conectar desde otro dispositivo en la red:
-   Reemplaza 192.168.X.X con tu IP local en Panel de Debug
-
-🔍 Endpoint de prueba: GET /api/ping
 `);
     });
 });

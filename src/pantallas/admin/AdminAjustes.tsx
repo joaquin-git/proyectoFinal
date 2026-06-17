@@ -22,7 +22,7 @@ export default function AdminAjustes() {
         {
           text: "Salir",
           onPress: async () => {
-            await AsyncStorage.removeItem('usuarioRegistrado');
+            await AsyncStorage.multiRemove(['authToken', 'refreshToken', 'usuarioRegistrado']);
             limpiarReservas();
             if (setUsuarioRol) setUsuarioRol(null);
             setEstaAutenticado(false);

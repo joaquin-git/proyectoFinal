@@ -1,14 +1,15 @@
 import React, { useContext, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Image, 
-  Modal, 
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Modal,
   TouchableWithoutFeedback,
   Platform
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TemaContext } from '../navegacion/NavegacionRaiz';
 import { useNavigation } from '@react-navigation/native';
 
@@ -30,8 +31,9 @@ export default function Toolbar({
   if (!tema) return null;
   const { colores, setEstaAutenticado } = tema;
 
-  const cerrarSesion = () => {
+  const cerrarSesion = async () => {
     setMenuVisible(false);
+    await AsyncStorage.multiRemove(['authToken', 'refreshToken', 'usuarioRegistrado']);
     setEstaAutenticado(false);
   };
 
