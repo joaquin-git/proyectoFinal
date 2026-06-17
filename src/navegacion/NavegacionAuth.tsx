@@ -33,14 +33,14 @@ export default function NavegacionAuth({ setEstaAutenticado }: NavegacionAuthPro
   return (
     <Stack.Navigator
       initialRouteName={onboardingVisto ? 'Login' : 'Onboarding'}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
     >
-      <Stack.Screen name="Onboarding" component={PantallaOnboarding} />
+      <Stack.Screen name="Onboarding" component={PantallaOnboarding} options={{ animation: 'none' }} />
       <Stack.Screen name="Login">
         {(props) => <PantallaLogin {...props} setEstaAutenticado={setEstaAutenticado} />}
       </Stack.Screen>
       <Stack.Screen name="Registro" component={PantallaRegistro} />
-      <Stack.Screen name="RecuperarContrasena" component={RecuperarContrasena} />
+      <Stack.Screen name="RecuperarContrasena" component={RecuperarContrasena} options={{ animation: 'slide_from_bottom' }} />
     </Stack.Navigator>
   );
 }

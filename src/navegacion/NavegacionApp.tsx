@@ -26,7 +26,7 @@ export default function NavegacionApp() {
 	const { colores } = useTema();
 
 	return (
-		<Stack.Navigator initialRouteName="Menu" screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colores.fondoPrincipal } }}>
+		<Stack.Navigator initialRouteName="Menu" screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: colores.fondoPrincipal } }}>
 			<Stack.Screen name="Menu" component={PantallaMenu} />
 			<Stack.Screen name="ReservaPistas" component={PantallaReservaPistas} />
 			<Stack.Screen name="SeleccionPista" component={PantallaSeleccionPista} />
@@ -36,14 +36,14 @@ export default function NavegacionApp() {
 			<Stack.Screen name="Perfil" component={PantallaPerfil} />
 			<Stack.Screen name="AjustesPerfil" component={AjustesPerfil} />
 			<Stack.Screen name="Productos" component={PantallaProductos} />
-			<Stack.Screen name="Pago" component={PantallaPago} />
+			<Stack.Screen name="Pago" component={PantallaPago} options={{ animation: 'slide_from_bottom' }} />
 			<Stack.Screen name="Ayuda" component={PantallaAyuda} />
 			<Stack.Screen name="EnviosDetalle" component={EnviosDetalle} />
 			<Stack.Screen name="DevolucionesDetalle" component={DevolucionesDetalle} />
 			<Stack.Screen name="TallasDetalle" component={TallasDetalle} />
 			<Stack.Screen name="HistorialCompras" component={MisCompras} />
-			<Stack.Screen name="Minijuego" component={PantallaMinijuego} />
-			<Stack.Screen name="ChatIA" component={PantallaChatIA} />
+			<Stack.Screen name="Minijuego" component={PantallaMinijuego} options={{ animation: 'fade' }} />
+			<Stack.Screen name="ChatIA" component={PantallaChatIA} options={{ animation: 'fade' }} />
 		</Stack.Navigator>
 	);
 }

@@ -47,7 +47,7 @@ export default function NavegacionRaiz() {
 			<ToastProvider>
 			<ReservasProvider>
 				<NavigationContainer>
-					<Stack.Navigator screenOptions={{ headerShown: false }}>
+					<Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 250 }}>
 						{estaAutenticado ? (
 							usuarioRol === 'admin' ? (
 								<Stack.Screen name="Admin" component={NavegacionAdmin} />
