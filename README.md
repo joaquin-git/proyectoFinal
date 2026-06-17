@@ -34,6 +34,9 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Filtro de instalaciones por deporte con chips (Todos / Fútbol 7 / Fútbol Sala / Pádel / Tenis), combinable con búsqueda por texto
 - Estado vacío en instalaciones con botón "Limpiar filtros" cuando no hay resultados
 - Pantalla de onboarding con 4 slides animados (imágenes reales del app, dots de progreso, botón "Omitir"), visible solo en el primer arranque
+- Búsqueda de productos con botón X para limpiar y estado vacío con botón "Limpiar filtros"
+- Animaciones de transición entre pantallas: slide lateral en navegación estándar, slide desde abajo para Pago, fade para ChatIA y Minijuego, fade en login/logout
+- Notificaciones locales de recordatorio de reserva: avisa 1 hora antes (o 10 minutos si la reserva es inminente), con permiso solicitado en el momento del pago
 
 **Notificaciones por email:**
 
@@ -79,6 +82,7 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 | Expo Image Picker | ~17.0.10 |
 | React Native Maps | 1.20.1 |
 | React Native WebView | ^13.16.1 |
+| Expo Notifications | ^0.32.17 |
 
 ### Testing
 
