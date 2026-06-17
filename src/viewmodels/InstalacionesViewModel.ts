@@ -5,11 +5,14 @@ import { InstalacionesService } from '../services/InstalacionesService';
 const DEPORTES_PERMITIDOS = ['Fútbol 7', 'Fútbol Sala', 'Pádel', 'Tenis'];
 const POR_PAGINA = 6;
 
+export const FILTROS_DEPORTE = ['Todos', ...DEPORTES_PERMITIDOS];
+
 export const useInstalacionesViewModel = () => {
   const [instalaciones, setInstalaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
+  const [deporteSeleccionado, setDeporteSeleccionado] = useState('Todos');
   const [paginaActual, setPaginaActual] = useState(1);
   const service = new InstalacionesService();
 
@@ -30,15 +33,17 @@ export const useInstalacionesViewModel = () => {
 
   const datosFiltrados = useMemo(() => {
     return instalaciones.filter((item: any) => {
-      const nombreMatch = item.nombre.toLowerCase().includes(busqueda.toLowerCase());
       const deportesArr = (typeof item.deportes === 'string' ? JSON.parse(item.deportes) : item.deportes)
         .filter((d: string) => DEPORTES_PERMITIDOS.includes(d));
-      const deportesMatch = deportesArr.some((d: string) => d.toLowerCase().includes(busqueda.toLowerCase()));
-      return nombreMatch || deportesMatch;
+      const coincideDeporte = deporteSeleccionado === 'Todos' || deportesArr.includes(deporteSeleccionado);
+      const coincideBusqueda = busqueda === '' ||
+        item.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+        deportesArr.some((d: string) => d.toLowerCase().includes(busqueda.toLowerCase()));
+      return coincideDeporte && coincideBusqueda;
     });
-  }, [instalaciones, busqueda]);
+  }, [instalaciones, busqueda, deporteSeleccionado]);
 
-  useEffect(() => { setPaginaActual(1); }, [busqueda]);
+  useEffect(() => { setPaginaActual(1); }, [busqueda, deporteSeleccionado]);
 
   const datosVisibles = useMemo(
     () => datosFiltrados.slice(0, paginaActual * POR_PAGINA),
@@ -77,6 +82,8 @@ export const useInstalacionesViewModel = () => {
     load,
     busqueda,
     setBusqueda,
+    deporteSeleccionado,
+    setDeporteSeleccionado,
     comoLlegar,
     parsearDeportes,
   };

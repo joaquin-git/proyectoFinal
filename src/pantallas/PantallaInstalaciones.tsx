@@ -16,7 +16,7 @@ import { BlurView } from 'expo-blur';
 import { Entypo, AntDesign, Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useTema } from '../navegacion/NavegacionRaiz';
-import { useInstalacionesViewModel } from '../viewmodels/InstalacionesViewModel';
+import { useInstalacionesViewModel, FILTROS_DEPORTE } from '../viewmodels/InstalacionesViewModel';
 import { useValoracionesInstalacionViewModel } from '../viewmodels/ValoracionesInstalacionViewModel';
 import { getImagenInstalacion, DEFAULT_IMAGE } from '../utils/imagenesInstalaciones';
 import { useToast } from '../contexto/ToastContext';
@@ -48,6 +48,8 @@ export default function PantallaInstalaciones({ navigation }: any) {
     cargarMas,
     busqueda,
     setBusqueda,
+    deporteSeleccionado,
+    setDeporteSeleccionado,
     comoLlegar,
     parsearDeportes,
   } = useInstalacionesViewModel();
@@ -139,7 +141,27 @@ export default function PantallaInstalaciones({ navigation }: any) {
             value={busqueda}
             onChangeText={setBusqueda}
           />
+          {busqueda.length > 0 && (
+            <TouchableOpacity onPress={() => setBusqueda('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={20} color={colores.textoSecundario} />
+            </TouchableOpacity>
+          )}
         </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsContent}>
+          {FILTROS_DEPORTE.map(deporte => {
+            const activo = deporteSeleccionado === deporte;
+            return (
+              <TouchableOpacity
+                key={deporte}
+                onPress={() => setDeporteSeleccionado(deporte)}
+                style={[styles.chip, activo ? { backgroundColor: colores.primario } : { backgroundColor: colores.fondoSecundario, borderWidth: 1, borderColor: colores.primario + '40' }]}
+              >
+                <Text style={[styles.chipTexto, { color: activo ? '#FFF' : colores.textoPrincipal }]}>{deporte}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <FlatList
@@ -148,6 +170,21 @@ export default function PantallaInstalaciones({ navigation }: any) {
         keyExtractor={(item: Instalacion) => item.id.toString()}
         contentContainerStyle={styles.listaContent}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.sinResultados}>
+            <Ionicons name="search-outline" size={48} color={colores.textoSecundario} />
+            <Text style={[styles.sinResultadosTitulo, { color: colores.textoPrincipal }]}>Sin resultados</Text>
+            <Text style={[styles.sinResultadosTexto, { color: colores.textoSecundario }]}>
+              No hay instalaciones que coincidan con tu búsqueda
+            </Text>
+            <TouchableOpacity
+              onPress={() => { setBusqueda(''); setDeporteSeleccionado('Todos'); }}
+              style={[styles.btnLimpiar, { borderColor: colores.primario }]}
+            >
+              <Text style={[styles.btnLimpiarTexto, { color: colores.primario }]}>Limpiar filtros</Text>
+            </TouchableOpacity>
+          </View>
+        }
         ListFooterComponent={
           hayMas ? (
             <TouchableOpacity
@@ -159,11 +196,11 @@ export default function PantallaInstalaciones({ navigation }: any) {
               </Text>
               <Ionicons name="chevron-down" size={18} color={colores.primario} />
             </TouchableOpacity>
-          ) : (
+          ) : datosFiltrados.length > 0 ? (
             <Text style={{ textAlign: 'center', paddingVertical: 18, fontSize: 13, color: colores.textoSecundario }}>
               {datosFiltrados.length} instalaciones en total
             </Text>
-          )
+          ) : null
         }
       />
 
@@ -345,4 +382,13 @@ const styles = StyleSheet.create({
   txtFlotante: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
   cerrarMapa: { position: 'absolute', top: 50, right: 20 },
   blurCerrar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  chipsScroll: { marginTop: 12 },
+  chipsContent: { paddingHorizontal: 2, gap: 8 },
+  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  chipTexto: { fontSize: 13, fontWeight: '600' },
+  sinResultados: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40, gap: 10 },
+  sinResultadosTitulo: { fontSize: 18, fontWeight: '700', marginTop: 8 },
+  sinResultadosTexto: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  btnLimpiar: { marginTop: 8, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, borderWidth: 1.5 },
+  btnLimpiarTexto: { fontWeight: '700', fontSize: 14 },
 });

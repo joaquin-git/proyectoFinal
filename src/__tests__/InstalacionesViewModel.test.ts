@@ -54,7 +54,7 @@ describe('useInstalacionesViewModel — filtrado', () => {
     expect(result.current.datosFiltrados[0].nombre).toBe('Pista Norte');
   });
 
-  it('filtra instalaciones por deporte', async () => {
+  it('filtra instalaciones por texto de deporte', async () => {
     const { result } = renderHook(() => useInstalacionesViewModel());
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => { result.current.setBusqueda('Tenis'); });
@@ -62,10 +62,36 @@ describe('useInstalacionesViewModel — filtrado', () => {
     expect(result.current.datosFiltrados).toHaveLength(4);
   });
 
-  it('sin búsqueda muestra todas las instalaciones', async () => {
+  it('filtra por chip de deporte', async () => {
+    const { result } = renderHook(() => useInstalacionesViewModel());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => { result.current.setDeporteSeleccionado('Pádel'); });
+    // Pista Norte (1), Centro Oeste (3), Zona Deportiva (6), Club Raqueta (7)
+    expect(result.current.datosFiltrados).toHaveLength(4);
+  });
+
+  it('combina búsqueda de texto y chip de deporte', async () => {
+    const { result } = renderHook(() => useInstalacionesViewModel());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => {
+      result.current.setDeporteSeleccionado('Tenis');
+      result.current.setBusqueda('Pista');
+    });
+    // Solo "Pista Norte" tiene Tenis y nombre "Pista"
+    expect(result.current.datosFiltrados).toHaveLength(1);
+  });
+
+  it('sin filtros muestra todas las instalaciones', async () => {
     const { result } = renderHook(() => useInstalacionesViewModel());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.datosFiltrados).toHaveLength(7);
+  });
+
+  it('devuelve 0 resultados con búsqueda sin coincidencias', async () => {
+    const { result } = renderHook(() => useInstalacionesViewModel());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => { result.current.setBusqueda('xyzinexistente'); });
+    expect(result.current.datosFiltrados).toHaveLength(0);
   });
 });
 
