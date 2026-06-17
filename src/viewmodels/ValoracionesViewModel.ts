@@ -13,6 +13,8 @@ export const useValoracionesViewModel = (productoId: string) => {
   const load = useCallback(async () => {
     if (!productoId) return;
     setLoading(true);
+    setMiPuntuacion(0);
+    setMiComentario('');
     try {
       const data = await getValoraciones(productoId);
       setValoraciones(data.valoraciones || []);

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
-import { Animated, Text, StyleSheet, View, Platform } from 'react-native';
+import { Animated, Text, StyleSheet, View, Platform, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 type ToastType = 'success' | 'error' | 'info';
@@ -30,11 +30,10 @@ const ICONOS: Record<ToastType, any> = {
 };
 
 function ToastComponent({ mensaje, tipo, anim }: { mensaje: string; tipo: ToastType; anim: Animated.Value }) {
-  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [100, 0] });
-  const opacity = anim.interpolate({ inputRange: [0, 0.2, 0.8, 1], outputRange: [0, 1, 1, 0] });
+  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [80, 0] });
 
   return (
-    <Animated.View style={[styles.toast, { opacity, transform: [{ translateY }], backgroundColor: COLORES[tipo] }]}>
+    <Animated.View style={[styles.toast, { opacity: anim, transform: [{ translateY }], backgroundColor: COLORES[tipo] }]}>
       <Ionicons name={ICONOS[tipo]} size={20} color="#FFF" />
       <Text style={styles.texto}>{mensaje}</Text>
     </Animated.View>
@@ -45,17 +44,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastConfig | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  const showToast = useCallback((mensaje: string, tipo: ToastType = 'success', duracion = 3000) => {
+  const showToast = useCallback((mensaje: string, tipo: ToastType = 'success', duracion = 2500) => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    if (animRef.current) animRef.current.stop();
     anim.setValue(0);
     setToast({ mensaje, tipo });
 
-    Animated.sequence([
-      Animated.timing(anim, { toValue: 1, duration: 300, useNativeDriver: true }),
+    animRef.current = Animated.sequence([
+      Animated.timing(anim, { toValue: 1, duration: 300, useNativeDriver: true, easing: Easing.out(Easing.ease) }),
       Animated.delay(duracion - 600),
-      Animated.timing(anim, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => setToast(null));
+      Animated.timing(anim, { toValue: 0, duration: 300, useNativeDriver: true, easing: Easing.in(Easing.ease) }),
+    ]);
+    animRef.current.start(() => setToast(null));
   }, []);
 
   return (

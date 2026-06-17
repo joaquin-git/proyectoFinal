@@ -29,10 +29,10 @@ export const useRegistroViewModel = () => {
     if (!validarFecha(data.fechaNacimiento)) e.fechaNacimiento = 'Formato: dd/mm/aaaa';
     if (!validarDNI(data.dni)) e.dni = 'DNI incorrecto';
     if (!data.telefono) e.telefono = 'El teléfono es obligatorio.';
-    if (!validarEmail(data.email)) e.correo = 'Email inválido';
+    if (!validarEmail(data.email)) e.correo = 'Correo electrónico no válido.';
     if (!data.usuario) e.usuario = 'Usuario obligatorio.';
     if (!validarContrasenaFuerte(data.contrasena)) e.contrasena = 'Contraseña débil.';
-    if (data.contrasena !== data.confirmarContrasena) e.confirmarContrasena = 'No coinciden.';
+    if (data.contrasena !== data.confirmarContrasena) e.confirmarContrasena = 'Las contraseñas no coinciden.';
     if (!data.calle) e.calle = 'La calle es obligatoria.';
     if (!data.numeroCasa) e.numeroCasa = 'El número es obligatorio.';
     return e;

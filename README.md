@@ -16,8 +16,9 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Reserva de pistas con disponibilidad en tiempo real por día y hora
 - Tienda de productos con carrito, filtros por categoría y selección de talla/color
 - Badge "Sin stock" en productos agotados con botón de añadir desactivado
-- Valoraciones y reseñas de productos con puntuación por estrellas
-- Productos favoritos sincronizados con el servidor
+- Valoraciones y reseñas de productos con puntuación por estrellas (1–5 estrellas, un voto por usuario por producto)
+- Vista de favoritos en la tienda: botón de corazón en el header para filtrar solo los productos guardados
+- Productos favoritos sincronizados con el servidor (caché local en AsyncStorage + BD)
 - Historial de compras con gestión de devoluciones
 - Pasarela de pago (tarjeta de crédito y Bizum)
 - Perfil de usuario con edición de datos y foto
@@ -39,9 +40,11 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 **Calidad y experiencia de usuario:**
 
 - Skeleton loaders animados mientras cargan los datos
-- Toasts/notificaciones flotantes para feedback de acciones
+- Toasts/notificaciones flotantes para feedback de acciones (animación corregida: sin parpadeo doble)
 - Estados de error con botón de reintentar
 - Pull to refresh en pantallas de datos
+- Todos los mensajes de validación en español
+- Mensaje de error legible si MySQL no está en ejecución al arrancar el backend
 
 ---
 

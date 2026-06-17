@@ -134,6 +134,7 @@ export default function PantallaProductos({ navigation }: any) {
   const [productoValoracion, setProductoValoracion] = useState<any>(null);
   const [tallaElegida, setTallaElegida] = useState('');
   const [colorElegido, setColorElegido] = useState('');
+  const [soloFavoritos, setSoloFavoritos] = useState(false);
 
   const intentarAgregarAlCarrito = (producto: any) => {
     if (producto.tallas || producto.colores) {
@@ -212,6 +213,9 @@ export default function PantallaProductos({ navigation }: any) {
             <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Ayuda')}>
               <Ionicons name="help-circle-outline" size={26} color={colores.textoPrincipal} />
             </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => setSoloFavoritos(v => !v)}>
+              <Ionicons name={soloFavoritos ? 'heart' : 'heart-outline'} size={26} color={soloFavoritos ? '#FF4444' : colores.textoPrincipal} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={() => setModalCarritoVisible(true)}>
               <Ionicons name="cart-outline" size={26} color={colores.textoPrincipal} />
               {carrito.length > 0 && (
@@ -254,13 +258,39 @@ export default function PantallaProductos({ navigation }: any) {
         />
       </View>
 
+      {soloFavoritos && (
+        <View style={[styles.bannerFavoritos, { backgroundColor: colores.fondoSecundario }]}>
+          <Ionicons name="heart" size={14} color="#FF4444" />
+          <Text style={[styles.bannerFavoritosTexto, { color: colores.textoPrincipal }]}>Mis favoritos</Text>
+          <TouchableOpacity
+            style={[styles.btnVolverProductos, { backgroundColor: colores.primario }]}
+            onPress={() => setSoloFavoritos(false)}
+          >
+            <Ionicons name="arrow-back" size={13} color="#FFF" />
+            <Text style={styles.btnVolverProductosTexto}>Volver a productos</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {loading ? (
         <SkeletonListaProductos />
       ) : error ? (
         <ErrorState mensaje={error} onReintentar={load} />
+      ) : soloFavoritos && productosFiltrados.filter(p => isFavorito(p.id)).length === 0 ? (
+        <View style={styles.favoritosVacio}>
+          <Ionicons name="heart-outline" size={60} color={colores.textoSecundario} />
+          <Text style={[styles.favoritosVacioTexto, { color: colores.textoSecundario }]}>No tienes favoritos guardados</Text>
+          <TouchableOpacity
+            style={[styles.btnVolverProductos, { backgroundColor: colores.primario, marginTop: 16 }]}
+            onPress={() => setSoloFavoritos(false)}
+          >
+            <Ionicons name="arrow-back" size={13} color="#FFF" />
+            <Text style={styles.btnVolverProductosTexto}>Volver a productos</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
-          data={productosFiltrados}
+          data={soloFavoritos ? productosFiltrados.filter(p => isFavorito(p.id)) : productosFiltrados}
           renderItem={renderProducto}
           keyExtractor={item => item.id}
           numColumns={2}
@@ -451,4 +481,10 @@ const styles = StyleSheet.create({
   footerCarrito: { borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 20, paddingBottom: 20 },
   totalTexto: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
   btnPagar: { padding: 15, borderRadius: 12, alignItems: 'center' },
+  bannerFavoritos: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, marginHorizontal: 15, borderRadius: 10, marginBottom: 4 },
+  bannerFavoritosTexto: { flex: 1, fontSize: 12, fontWeight: '600' },
+  btnVolverProductos: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+  btnVolverProductosTexto: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+  favoritosVacio: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 60 },
+  favoritosVacioTexto: { fontSize: 16, marginTop: 14, fontWeight: '600' },
 });

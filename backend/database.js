@@ -219,5 +219,8 @@ async function initDB() {
 
 module.exports = {
     initDB,
-    getPool: () => pool
+    getPool: () => {
+        if (!pool) throw new Error('No se pudo conectar con la base de datos. Asegúrate de que MySQL está en ejecución.');
+        return pool;
+    }
 };

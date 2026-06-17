@@ -12,7 +12,7 @@ export const useRecuperarContrasenaViewModel = () => {
 
   const enviarCodigo = async (): Promise<boolean> => {
     if (!email.includes('@')) {
-      setError('Introduce un email válido');
+      setError('Introduce un correo electrónico válido.');
       return false;
     }
     setError('');
@@ -22,7 +22,7 @@ export const useRecuperarContrasenaViewModel = () => {
       setFase('codigo');
       return true;
     } catch (e: any) {
-      setError(e.message || 'Email no encontrado');
+      setError(e.message || 'Correo electrónico no encontrado.');
       return false;
     } finally {
       setLoading(false);
