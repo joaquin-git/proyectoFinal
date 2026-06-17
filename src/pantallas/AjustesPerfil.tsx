@@ -14,13 +14,16 @@ import {
   ImageBackground,
   KeyboardAvoidingView
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../navegacion/NavegacionRaiz';
 import { useReservas } from '../contexto/ReservasContext';
 import { useAjustesPerfilViewModel } from '../viewmodels/AjustesPerfilViewModel';
+import { useToast } from '../contexto/ToastContext';
 
 export default function AjustesPerfil({ navigation }: any) {
   const { colores, setEstaAutenticado } = useTema();
   const { limpiarReservas } = useReservas();
+  const { showToast } = useToast();
 
   const [verActual, setVerActual] = useState(false);
   const [verNueva, setVerNueva] = useState(false);
@@ -29,17 +32,17 @@ export default function AjustesPerfil({ navigation }: any) {
   const { usuario, setUsuario, seleccionarFoto, guardarCambios, loading } = useAjustesPerfilViewModel();
 
   const manejarGuardar = async () => {
+    const cambioPassword = !!usuario.passwordNueva;
     await guardarCambios(
       () => {
-        Alert.alert('Éxito', 'Perfil actualizado. Por seguridad, inicia sesión de nuevo.', [
-          {
-            text: 'OK',
-            onPress: () => {
-              limpiarReservas();
-              setEstaAutenticado(false);
-            },
-          },
-        ]);
+        if (cambioPassword) {
+          Alert.alert('Contraseña actualizada', 'Por seguridad, inicia sesión de nuevo.', [
+            { text: 'OK', onPress: () => { limpiarReservas(); setEstaAutenticado(false); } },
+          ]);
+        } else {
+          showToast('Perfil actualizado', 'success');
+          navigation.goBack();
+        }
       },
       () => Alert.alert('Error', 'Revisa los datos introducidos.')
     );
@@ -75,7 +78,7 @@ export default function AjustesPerfil({ navigation }: any) {
                       </View>
                     )}
                     <View style={[styles.badgeCamara, { backgroundColor: colores.primario }]}>
-                      <View style={styles.puntoCamara} />
+                      <Ionicons name="camera" size={16} color="#FFF" />
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -182,7 +185,6 @@ const styles = StyleSheet.create({
   fotoPlaceholder: { width: '100%', height: '100%', borderRadius: 60, justifyContent: 'center', alignItems: 'center' },
   circuloVacio: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#444' },
   badgeCamara: { position: 'absolute', bottom: 0, right: 0, width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
-  puntoCamara: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFF' },
   subtituloFoto: { fontSize: 11, color: '#FFF', fontWeight: '800', marginTop: 12, letterSpacing: 1 },
   tarjetaSeccion: { backgroundColor: 'rgba(30,30,30,0.95)', borderRadius: 20, padding: 22, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   tituloSeccionTarj: { fontSize: 16, fontWeight: '900', marginBottom: 22, letterSpacing: 1, color: '#FFF' },
