@@ -58,6 +58,7 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Todos los mensajes de validación en español
 - Mensaje de error legible si MySQL no está en ejecución al arrancar el backend
 - Paginación client-side con botón "Ver más" y contador de items restantes
+- Suite de tests unitarios con Jest y React Native Testing Library (52 tests, 3 suites)
 
 ---
 
@@ -75,6 +76,14 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 | Expo Image Picker | ~17.0.10 |
 | React Native Maps | 1.20.1 |
 | React Native WebView | ^13.16.1 |
+
+### Testing
+
+| Tecnología | Versión |
+|---|---|
+| Jest | ^29.7.0 |
+| jest-expo | ^56.0.5 |
+| React Native Testing Library | ^12.9.0 |
 
 ### Backend
 
@@ -128,7 +137,8 @@ SportSpaceJMG/
     │   └── admin/          Pantallas del panel de administración
     ├── services/           Capa de acceso a datos (API y AsyncStorage)
     ├── tipos/              Interfaces y tipos TypeScript
-    ├── utils/              Funciones de utilidad
+    ├── __tests__/          Tests unitarios (Jest + RNTL)
+    ├── utils/              Funciones de utilidad reutilizables
     └── viewmodels/         Lógica de negocio, estado y acciones por pantalla
 ```
 
@@ -189,6 +199,34 @@ La base de datos y las tablas se crean automáticamente al arrancar el servidor 
 ### 5. Configurar la IP del servidor (dispositivo físico)
 
 Si usas un dispositivo físico en lugar de un emulador, edita `src/config/serverConfig.ts` y reemplaza la IP en `development_network.url` con la IP local de tu máquina. Asegúrate de que el móvil y el PC estén en la misma red WiFi.
+
+---
+
+## Tests
+
+El proyecto incluye una suite de tests unitarios que cubre la lógica de negocio de los ViewModels y las funciones de validación.
+
+### Ejecutar los tests
+
+```bash
+npm test
+```
+
+Para ver cobertura:
+
+```bash
+npm run test:coverage
+```
+
+### Cobertura
+
+| Suite | Tests | Qué se testea |
+|---|---|---|
+| `validaciones.test.ts` | 24 | Email, DNI (cálculo de letra de control), fecha y contraseña fuerte |
+| `ProductosViewModel.test.ts` | 16 | Carga, error, filtrado por nombre y categoría, paginación, carrito y favoritos |
+| `InstalacionesViewModel.test.ts` | 12 | Carga, error, filtrado por nombre y deporte, paginación y `parsearDeportes` |
+
+**Total: 52 tests — 3 suites**
 
 ---
 
