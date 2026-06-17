@@ -119,6 +119,9 @@ export default function PantallaProductos({ navigation }: any) {
 
   const {
     productosFiltrados,
+    productosVisibles,
+    hayMas,
+    cargarMas,
     loading, error, load,
     busqueda, setBusqueda,
     categoriaSeleccionada, setCategoriaSeleccionada,
@@ -290,7 +293,7 @@ export default function PantallaProductos({ navigation }: any) {
         </View>
       ) : (
         <FlatList
-          data={soloFavoritos ? productosFiltrados.filter(p => isFavorito(p.id)) : productosFiltrados}
+          data={soloFavoritos ? productosFiltrados.filter(p => isFavorito(p.id)) : productosVisibles}
           renderItem={renderProducto}
           keyExtractor={item => item.id}
           numColumns={2}
@@ -299,6 +302,18 @@ export default function PantallaProductos({ navigation }: any) {
           showsVerticalScrollIndicator={false}
           refreshing={loading}
           onRefresh={load}
+          onEndReached={soloFavoritos ? undefined : cargarMas}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            hayMas && !soloFavoritos ? (
+              <View style={styles.footerCarga}>
+                <ActivityIndicator size="small" color={colores.primario} />
+                <Text style={[styles.footerCargaTexto, { color: colores.textoSecundario }]}>
+                  Cargando más productos...
+                </Text>
+              </View>
+            ) : null
+          }
         />
       )}
 
@@ -481,6 +496,8 @@ const styles = StyleSheet.create({
   footerCarrito: { borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 20, paddingBottom: 20 },
   totalTexto: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
   btnPagar: { padding: 15, borderRadius: 12, alignItems: 'center' },
+  footerCarga: { paddingVertical: 20, alignItems: 'center', gap: 8 },
+  footerCargaTexto: { fontSize: 13 },
   bannerFavoritos: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, marginHorizontal: 15, borderRadius: 10, marginBottom: 4 },
   bannerFavoritosTexto: { flex: 1, fontSize: 12, fontWeight: '600' },
   btnVolverProductos: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },

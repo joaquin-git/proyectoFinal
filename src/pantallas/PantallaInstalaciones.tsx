@@ -43,6 +43,9 @@ export default function PantallaInstalaciones({ navigation }: any) {
   const {
     instalaciones,
     datosFiltrados,
+    datosVisibles,
+    hayMas,
+    cargarMas,
     busqueda,
     setBusqueda,
     comoLlegar,
@@ -140,11 +143,21 @@ export default function PantallaInstalaciones({ navigation }: any) {
       </View>
 
       <FlatList
-        data={datosFiltrados}
+        data={datosVisibles}
         renderItem={renderTarjeta}
         keyExtractor={(item: Instalacion) => item.id.toString()}
         contentContainerStyle={styles.listaContent}
         showsVerticalScrollIndicator={false}
+        onEndReached={cargarMas}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          hayMas ? (
+            <View style={{ paddingVertical: 20, alignItems: 'center', gap: 8 }}>
+              <ActivityIndicator size="small" color={colores.primario} />
+              <Text style={{ color: colores.textoSecundario, fontSize: 13 }}>Cargando más instalaciones...</Text>
+            </View>
+          ) : null
+        }
       />
 
       <TouchableOpacity

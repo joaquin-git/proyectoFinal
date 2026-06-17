@@ -4,6 +4,7 @@ import { ProductosService } from '../services/ProductosService';
 import { getFavoritosAPI, agregarFavoritoAPI, eliminarFavoritoAPI } from '../../servicios/api';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1621570277341-3965ff0f55cb?q=80&w=1000';
+const POR_PAGINA = 10;
 
 const mapearProducto = (p: any) => {
   let tallas: string[] | undefined;
@@ -39,6 +40,7 @@ export const useProductosViewModel = () => {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
   const [carrito, setCarrito] = useState<any[]>([]);
   const [favoritoIds, setFavoritoIds] = useState<string[]>([]);
+  const [paginaActual, setPaginaActual] = useState(1);
   const service = new ProductosService();
 
   const load = useCallback(async () => {
@@ -72,6 +74,20 @@ export const useProductosViewModel = () => {
       return coincideBusqueda && coincideCategoria;
     });
   }, [productos, busqueda, categoriaSeleccionada]);
+
+  // Resetear paginación cuando cambian los filtros
+  useEffect(() => { setPaginaActual(1); }, [busqueda, categoriaSeleccionada]);
+
+  const productosVisibles = useMemo(
+    () => productosFiltrados.slice(0, paginaActual * POR_PAGINA),
+    [productosFiltrados, paginaActual]
+  );
+
+  const hayMas = productosVisibles.length < productosFiltrados.length;
+
+  const cargarMas = useCallback(() => {
+    if (hayMas) setPaginaActual(prev => prev + 1);
+  }, [hayMas]);
 
   const totalCarrito = useMemo(
     () => carrito.reduce((sum: number, item: any) => sum + item.precio, 0),
@@ -112,6 +128,9 @@ export const useProductosViewModel = () => {
   return {
     productos,
     productosFiltrados,
+    productosVisibles,
+    hayMas,
+    cargarMas,
     loading,
     error,
     load,

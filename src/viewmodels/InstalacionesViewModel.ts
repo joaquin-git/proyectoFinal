@@ -3,12 +3,14 @@ import { Platform, Linking, Alert } from 'react-native';
 import { InstalacionesService } from '../services/InstalacionesService';
 
 const DEPORTES_PERMITIDOS = ['Fútbol 7', 'Fútbol Sala', 'Pádel', 'Tenis'];
+const POR_PAGINA = 6;
 
 export const useInstalacionesViewModel = () => {
   const [instalaciones, setInstalaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
+  const [paginaActual, setPaginaActual] = useState(1);
   const service = new InstalacionesService();
 
   const load = useCallback(async () => {
@@ -36,6 +38,19 @@ export const useInstalacionesViewModel = () => {
     });
   }, [instalaciones, busqueda]);
 
+  useEffect(() => { setPaginaActual(1); }, [busqueda]);
+
+  const datosVisibles = useMemo(
+    () => datosFiltrados.slice(0, paginaActual * POR_PAGINA),
+    [datosFiltrados, paginaActual]
+  );
+
+  const hayMas = datosVisibles.length < datosFiltrados.length;
+
+  const cargarMas = useCallback(() => {
+    if (hayMas) setPaginaActual(prev => prev + 1);
+  }, [hayMas]);
+
   const comoLlegar = (lat: number, lng: number, nombre: string) => {
     const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
     const latLng = `${lat},${lng}`;
@@ -54,6 +69,9 @@ export const useInstalacionesViewModel = () => {
   return {
     instalaciones,
     datosFiltrados,
+    datosVisibles,
+    hayMas,
+    cargarMas,
     loading,
     error,
     load,
