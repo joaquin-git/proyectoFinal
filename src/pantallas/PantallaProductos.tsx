@@ -233,12 +233,17 @@ export default function PantallaProductos({ navigation }: any) {
         <View style={[styles.searchBar, { backgroundColor: colores.fondoSecundario }]}>
           <Ionicons name="search" size={20} color={colores.textoSecundario} />
           <TextInput
-            placeholder="Buscar..."
+            placeholder="Buscar productos..."
             placeholderTextColor={colores.textoSecundario}
             style={[styles.input, { color: colores.textoPrincipal }]}
             value={busqueda}
             onChangeText={setBusqueda}
           />
+          {busqueda.length > 0 && (
+            <TouchableOpacity onPress={() => setBusqueda('')}>
+              <Ionicons name="close-circle" size={18} color={colores.textoSecundario} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -289,6 +294,20 @@ export default function PantallaProductos({ navigation }: any) {
           >
             <Ionicons name="arrow-back" size={13} color="#FFF" />
             <Text style={styles.btnVolverProductosTexto}>Volver a productos</Text>
+          </TouchableOpacity>
+        </View>
+      ) : !soloFavoritos && productosFiltrados.length === 0 ? (
+        <View style={styles.sinResultados}>
+          <Ionicons name="search-outline" size={56} color={colores.textoSecundario} />
+          <Text style={[styles.sinResultadosTitulo, { color: colores.textoPrincipal }]}>Sin resultados</Text>
+          <Text style={[styles.sinResultadosTexto, { color: colores.textoSecundario }]}>
+            No hay productos que coincidan con tu búsqueda
+          </Text>
+          <TouchableOpacity
+            style={[styles.btnLimpiar, { backgroundColor: colores.primario }]}
+            onPress={() => { setBusqueda(''); setCategoriaSeleccionada('Todos'); }}
+          >
+            <Text style={styles.btnLimpiarTexto}>Limpiar filtros</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -510,4 +529,9 @@ const styles = StyleSheet.create({
   btnVolverProductosTexto: { color: '#FFF', fontSize: 12, fontWeight: '700' },
   favoritosVacio: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 60 },
   favoritosVacioTexto: { fontSize: 16, marginTop: 14, fontWeight: '600' },
+  sinResultados: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 60, paddingHorizontal: 30 },
+  sinResultadosTitulo: { fontSize: 20, fontWeight: '800', marginTop: 16, marginBottom: 8 },
+  sinResultadosTexto: { fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  btnLimpiar: { paddingHorizontal: 28, paddingVertical: 12, borderRadius: 20 },
+  btnLimpiarTexto: { color: '#FFF', fontWeight: '700', fontSize: 14 },
 });
