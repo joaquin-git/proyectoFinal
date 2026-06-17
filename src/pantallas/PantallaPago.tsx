@@ -51,14 +51,17 @@ export default function PantallaPago({ route, navigation }: any) {
         ]);
       });
     } else if (reservaData) {
-      await pagarReserva(reservaData, () => {
-        programarRecordatorioReserva(
+      await pagarReserva(reservaData, async () => {
+        const recordatorio = await programarRecordatorioReserva(
           reservaData.deporte,
           reservaData.pista,
           reservaData.fecha,
           reservaData.hora,
         );
-        Alert.alert('¡Reserva Confirmada!', 'Tu pista ha sido reservada con éxito.', [
+        const mensaje = recordatorio
+          ? 'Tu pista ha sido reservada con éxito.\n\n🔔 Recibirás un recordatorio 1 hora antes.'
+          : 'Tu pista ha sido reservada con éxito.';
+        Alert.alert('¡Reserva Confirmada!', mensaje, [
           { text: 'Aceptar', onPress: () => navigation.popToTop() },
         ]);
       });
