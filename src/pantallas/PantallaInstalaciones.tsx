@@ -148,15 +148,22 @@ export default function PantallaInstalaciones({ navigation }: any) {
         keyExtractor={(item: Instalacion) => item.id.toString()}
         contentContainerStyle={styles.listaContent}
         showsVerticalScrollIndicator={false}
-        onEndReached={cargarMas}
-        onEndReachedThreshold={0.3}
         ListFooterComponent={
           hayMas ? (
-            <View style={{ paddingVertical: 20, alignItems: 'center', gap: 8 }}>
-              <ActivityIndicator size="small" color={colores.primario} />
-              <Text style={{ color: colores.textoSecundario, fontSize: 13 }}>Cargando más instalaciones...</Text>
-            </View>
-          ) : null
+            <TouchableOpacity
+              onPress={cargarMas}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, margin: 20, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: colores.primario }}
+            >
+              <Text style={{ color: colores.primario, fontWeight: '700', fontSize: 14 }}>
+                Ver más instalaciones ({datosFiltrados.length - datosVisibles.length} restantes)
+              </Text>
+              <Ionicons name="chevron-down" size={18} color={colores.primario} />
+            </TouchableOpacity>
+          ) : (
+            <Text style={{ textAlign: 'center', paddingVertical: 18, fontSize: 13, color: colores.textoSecundario }}>
+              {datosFiltrados.length} instalaciones en total
+            </Text>
+          )
         }
       />
 

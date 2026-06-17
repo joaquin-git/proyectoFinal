@@ -302,17 +302,22 @@ export default function PantallaProductos({ navigation }: any) {
           showsVerticalScrollIndicator={false}
           refreshing={loading}
           onRefresh={load}
-          onEndReached={soloFavoritos ? undefined : cargarMas}
-          onEndReachedThreshold={0.3}
           ListFooterComponent={
-            hayMas && !soloFavoritos ? (
-              <View style={styles.footerCarga}>
-                <ActivityIndicator size="small" color={colores.primario} />
-                <Text style={[styles.footerCargaTexto, { color: colores.textoSecundario }]}>
-                  Cargando más productos...
+            soloFavoritos ? null : hayMas ? (
+              <TouchableOpacity
+                style={[styles.btnVerMas, { borderColor: colores.primario }]}
+                onPress={cargarMas}
+              >
+                <Text style={[styles.btnVerMasTexto, { color: colores.primario }]}>
+                  Ver más productos ({productosFiltrados.length - productosVisibles.length} restantes)
                 </Text>
-              </View>
-            ) : null
+                <Ionicons name="chevron-down" size={18} color={colores.primario} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={[styles.footerFin, { color: colores.textoSecundario }]}>
+                {productosFiltrados.length} productos en total
+              </Text>
+            )
           }
         />
       )}
@@ -496,8 +501,9 @@ const styles = StyleSheet.create({
   footerCarrito: { borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 20, paddingBottom: 20 },
   totalTexto: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
   btnPagar: { padding: 15, borderRadius: 12, alignItems: 'center' },
-  footerCarga: { paddingVertical: 20, alignItems: 'center', gap: 8 },
-  footerCargaTexto: { fontSize: 13 },
+  btnVerMas: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 15, marginVertical: 10, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5 },
+  btnVerMasTexto: { fontWeight: '700', fontSize: 14 },
+  footerFin: { textAlign: 'center', paddingVertical: 18, fontSize: 13 },
   bannerFavoritos: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, marginHorizontal: 15, borderRadius: 10, marginBottom: 4 },
   bannerFavoritosTexto: { flex: 1, fontSize: 12, fontWeight: '600' },
   btnVolverProductos: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
