@@ -166,9 +166,9 @@ app.post('/api/login', async (req, res) => {
         let user = rows[0];
         let match = false;
 
-        if (user.contrasena.startsWith('$2b$')) {
+        if (user.contrasena && user.contrasena.startsWith('$2b$')) {
             match = await bcrypt.compare(contrasena, user.contrasena);
-        } else {
+        } else if (user.contrasena) {
             match = contrasena === user.contrasena;
             if (match) {
                 const hash = await bcrypt.hash(contrasena, 10);
