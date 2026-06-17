@@ -35,7 +35,8 @@ export const ReservasProvider = ({ children }: { children: React.ReactNode }) =>
   const cargarReservas = async () => {
     try {
       const datos = await AsyncStorage.getItem('usuarioRegistrado');
-      if (datos) {
+      const token = await AsyncStorage.getItem('authToken');
+      if (datos && token) {
         const u = JSON.parse(datos);
         const misRegs = await getMisReservas(u.id);
         setMisReservas(misRegs);
@@ -43,7 +44,7 @@ export const ReservasProvider = ({ children }: { children: React.ReactNode }) =>
         setMisReservas([]);
       }
     } catch (err) {
-      console.error("Error al cargar reservas:", err);
+      setMisReservas([]);
     }
   };
 
