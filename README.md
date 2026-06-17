@@ -33,6 +33,7 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Subida de imagen desde la galería del móvil en el panel admin (productos e instalaciones), con preview y opción alternativa de URL
 - Filtro de instalaciones por deporte con chips (Todos / Fútbol 7 / Fútbol Sala / Pádel / Tenis), combinable con búsqueda por texto
 - Estado vacío en instalaciones con botón "Limpiar filtros" cuando no hay resultados
+- Pantalla de onboarding con 4 slides animados (imágenes reales del app, dots de progreso, botón "Omitir"), visible solo en el primer arranque
 
 **Notificaciones por email:**
 
