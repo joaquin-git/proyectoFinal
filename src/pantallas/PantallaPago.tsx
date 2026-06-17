@@ -59,7 +59,7 @@ export default function PantallaPago({ route, navigation }: any) {
           reservaData.hora,
         );
         const mensaje = recordatorio
-          ? 'Tu pista ha sido reservada con éxito.\n\n🔔 Recibirás un recordatorio 1 hora antes.'
+          ? `Tu pista ha sido reservada con éxito.\n\n🔔 Recibirás un recordatorio ${recordatorio}.`
           : 'Tu pista ha sido reservada con éxito.';
         Alert.alert('¡Reserva Confirmada!', mensaje, [
           { text: 'Aceptar', onPress: () => navigation.popToTop() },
