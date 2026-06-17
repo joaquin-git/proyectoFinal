@@ -51,7 +51,7 @@ export default function AdminProductos() {
       setDescripcion(producto.descripcion);
       setPrecio(producto.precio.toString());
       setStock(producto.stock.toString());
-      setImagen(producto.imagen);
+      setImagen(producto.imagen || '');
       setCategoria(producto.categoria || '');
     } else {
       setEditandoId(null);
@@ -201,7 +201,7 @@ export default function AdminProductos() {
               <Text style={[styles.labelUrl, { color: colores.textoSecundario }]}>— o pega una URL —</Text>
               <TextInput
                 style={[styles.input, { color: colores.textoPrincipal, backgroundColor: colores.fondoSecundario }]}
-                value={imagen.startsWith('data:') ? '' : imagen}
+                value={(imagen || '').startsWith('data:') ? '' : imagen}
                 onChangeText={setImagen}
                 placeholder="https://ejemplo.com/imagen.jpg"
                 placeholderTextColor={colores.textoSecundario}

@@ -270,7 +270,7 @@ export default function AdminInstalaciones() {
               <Text style={[styles.labelUrl, { color: colores.textoSecundario }]}>— o pega una URL —</Text>
               <TextInput
                 style={[styles.input, { color: colores.textoPrincipal, backgroundColor: colores.fondoSecundario }]}
-                value={imagen.startsWith('data:') ? '' : imagen}
+                value={(imagen || '').startsWith('data:') ? '' : imagen}
                 onChangeText={setImagen}
                 placeholder="https://..."
                 placeholderTextColor={colores.textoSecundario}
