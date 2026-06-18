@@ -5,3 +5,12 @@ export interface Usuario {
   foto?: string;
   rol?: string;
 }
+
+export interface UsuarioAdmin {
+  id: number;
+  nombre?: string;
+  usuario: string;
+  email: string;
+  rol: string;
+  foto?: string;
+}

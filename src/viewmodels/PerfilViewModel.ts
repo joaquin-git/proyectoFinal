@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useReservas } from '../contexto/ReservasContext';
+import { Reserva } from '../tipos/Reserva';
 
 const MESES: Record<string, number> = {
   'Enero': 0, 'Febrero': 1, 'Marzo': 2, 'Abril': 3, 'Mayo': 4, 'Junio': 5,
@@ -28,7 +29,7 @@ export const esReservaPasada = (fechaStr: string, horaStr: string): boolean => {
   }
 };
 
-export const usePerfilViewModel = (navigation: any) => {
+export const usePerfilViewModel = (navigation: { navigate?: (...args: unknown[]) => void }) => {
   const { misReservas, eliminarReserva } = useReservas();
 
   const reservasActivas = useMemo(
@@ -52,14 +53,14 @@ export const usePerfilViewModel = (navigation: any) => {
     );
   };
 
-  const gestionarReserva = (reserva: any) => {
+  const gestionarReserva = (reserva: Reserva) => {
     Alert.alert(
       'Gestionar Reserva',
       `¿Qué deseas hacer con tu reserva en ${reserva.pista}?`,
       [
         {
           text: 'Modificar',
-          onPress: () => navigation.navigate('ReservaDetalle', {
+          onPress: () => navigation.navigate?.('ReservaDetalle', {
             deporte: reserva.deporte,
             pista: reserva.pista,
             esEdicion: true,

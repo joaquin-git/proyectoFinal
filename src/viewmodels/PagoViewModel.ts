@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { PagoService } from '../services/PagoService';
 import { useReservas } from '../contexto/ReservasContext';
+import { ItemCarrito } from '../tipos/Producto';
+import { Reserva } from '../tipos/Reserva';
 
 export const usePagoViewModel = () => {
   const [loading, setLoading] = useState(false);
@@ -18,7 +20,7 @@ export const usePagoViewModel = () => {
   };
 
   const pagarCarrito = async (
-    productos: any[],
+    productos: ItemCarrito[],
     total: number,
     metodo: string,
     onSuccess: () => void
@@ -39,7 +41,7 @@ export const usePagoViewModel = () => {
   };
 
   const pagarReserva = async (
-    reservaData: any,
+    reservaData: Reserva,
     onSuccess: () => void
   ): Promise<void> => {
     setLoading(true);

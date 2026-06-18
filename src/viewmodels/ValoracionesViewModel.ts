@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getValoraciones, agregarValoracion } from '../../servicios/api';
+import { Valoracion } from '../tipos/Valoracion';
 
 export const useValoracionesViewModel = (productoId: string) => {
-  const [valoraciones, setValoraciones] = useState<any[]>([]);
+  const [valoraciones, setValoraciones] = useState<Valoracion[]>([]);
   const [media, setMedia] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [miPuntuacion, setMiPuntuacion] = useState(0);
@@ -23,7 +24,7 @@ export const useValoracionesViewModel = (productoId: string) => {
       const usuarioRaw = await AsyncStorage.getItem('usuarioRegistrado');
       if (usuarioRaw) {
         const usuario = JSON.parse(usuarioRaw);
-        const mia = (data.valoraciones || []).find((v: any) => v.usuario_id === usuario.id);
+        const mia = (data.valoraciones as Valoracion[]).find(v => v.usuario_id === usuario.id);
         if (mia) {
           setMiPuntuacion(mia.puntuacion);
           setMiComentario(mia.comentario || '');

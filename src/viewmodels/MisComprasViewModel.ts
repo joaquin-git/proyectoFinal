@@ -2,9 +2,10 @@ import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { MisComprasService } from '../services/MisComprasService';
+import { Compra } from '../tipos/Compra';
 
 export const useMisComprasViewModel = () => {
-  const [compras, setCompras] = useState<any[]>([]);
+  const [compras, setCompras] = useState<Compra[]>([]);
   const [loading, setLoading] = useState(false);
   const service = new MisComprasService();
 
@@ -22,7 +23,7 @@ export const useMisComprasViewModel = () => {
     }, [])
   );
 
-  const procesarDevolucion = async (compra: any): Promise<void> => {
+  const procesarDevolucion = async (compra: Compra): Promise<void> => {
     const nuevas = await service.procesarDevolucion(compra, compras);
     setCompras(nuevas);
     Alert.alert(

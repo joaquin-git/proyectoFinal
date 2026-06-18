@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { getProductos, crearProductoAdmin, editarProductoAdmin, eliminarProductoAdmin } from '../../servicios/api';
+import { ProductoAdmin } from '../tipos/Producto';
 
 export const useAdminProductosViewModel = () => {
-  const [productos, setProductos] = useState<any[]>([]);
+  const [productos, setProductos] = useState<ProductoAdmin[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
@@ -17,7 +18,7 @@ export const useAdminProductosViewModel = () => {
     }
   };
 
-  const saveProduct = async (id: number | null, datos: any) => {
+  const saveProduct = async (id: number | null, datos: Partial<ProductoAdmin>) => {
     try {
       if (id) await editarProductoAdmin(id, datos);
       else await crearProductoAdmin(datos);
@@ -42,4 +43,3 @@ export const useAdminProductosViewModel = () => {
 
   return { productos, loading, load, saveProduct, deleteProduct };
 };
-

@@ -138,7 +138,7 @@ export default function AdminProductos() {
 
       <FlatList
         data={productos}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => item.id?.toString() ?? ''}
         renderItem={renderProducto}
         contentContainerStyle={styles.lista}
         refreshing={loading}

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { getAdminUsuarios, eliminarUsuario } from '../../servicios/api';
+import { UsuarioAdmin } from '../tipos/Usuario';
 
 export const useAdminUsuariosViewModel = () => {
-  const [usuarios, setUsuarios] = useState<any[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
@@ -17,7 +18,7 @@ export const useAdminUsuariosViewModel = () => {
     }
   };
 
-  const deleteUser = async (id: any) => {
+  const deleteUser = async (id: number) => {
     try {
       await eliminarUsuario(id);
       await load();
@@ -30,4 +31,3 @@ export const useAdminUsuariosViewModel = () => {
 
   return { usuarios, loading, load, deleteUser };
 };
-

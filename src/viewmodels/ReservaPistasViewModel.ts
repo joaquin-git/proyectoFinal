@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { ReservaPistasService } from '../services/ReservaPistasService';
+import { Reserva, DatosReserva } from '../tipos/Reserva';
 
 export const useReservaPistasViewModel = () => {
-  const [reservas, setReservas] = useState<any[]>([]);
+  const [reservas, setReservas] = useState<Reserva[]>([]);
   const [loading, setLoading] = useState(false);
   const service = new ReservaPistasService();
+
   const load = async () => {
     setLoading(true);
     const data = await service.fetchReservas();
@@ -12,7 +14,7 @@ export const useReservaPistasViewModel = () => {
     setLoading(false);
   };
 
-  const crear = async (datos: any) => {
+  const crear = async (datos: DatosReserva) => {
     setLoading(true);
     const res = await service.crearReserva(datos);
     await load();
@@ -24,7 +26,7 @@ export const useReservaPistasViewModel = () => {
     return await service.obtenerOcupadas(instalacionId, fecha, deporte);
   };
 
-  const modificar = async (id: string | number, nuevaData: any) => {
+  const modificar = async (id: string | number, nuevaData: Partial<DatosReserva>) => {
     const res = await service.modificarReserva(id, nuevaData);
     await load();
     return res;

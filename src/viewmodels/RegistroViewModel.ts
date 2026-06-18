@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { RegistroService } from '../services/RegistroService';
 import { validarEmail, validarDNI, validarFecha, validarContrasenaFuerte } from '../utils/validaciones';
+import { DatosRegistro } from '../tipos/DatosRegistro';
 
 export const useRegistroViewModel = () => {
   const service = new RegistroService();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const validar = (data: any): Record<string, string> => {
+  const validar = (data: DatosRegistro): Record<string, string> => {
     const e: Record<string, string> = {};
     if (!data.nombre) e.nombre = 'El nombre es obligatorio.';
     if (!data.apellidos) e.apellidos = 'Los apellidos son obligatorios.';
@@ -23,7 +24,7 @@ export const useRegistroViewModel = () => {
     return e;
   };
 
-  const register = async (data: any): Promise<boolean> => {
+  const register = async (data: DatosRegistro): Promise<boolean> => {
     const nuevosErrores = validar(data);
     setErrors(nuevosErrores);
     if (Object.keys(nuevosErrores).length > 0) return false;

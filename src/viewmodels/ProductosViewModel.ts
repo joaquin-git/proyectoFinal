@@ -2,30 +2,31 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ProductosService } from '../services/ProductosService';
 import { getFavoritosAPI, agregarFavoritoAPI, eliminarFavoritoAPI } from '../../servicios/api';
+import { Producto, ProductoRaw, ItemCarrito } from '../tipos/Producto';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1621570277341-3965ff0f55cb?q=80&w=1000';
 const POR_PAGINA = 10;
 
-const mapearProducto = (p: any) => {
+const mapearProducto = (p: ProductoRaw): Producto => {
   let tallas: string[] | undefined;
   let coloresArr: string[] | undefined;
 
   if (p.categoria === 'Ropa') {
     tallas = ['S', 'M', 'L', 'XL'];
     coloresArr = ['#FFFFFF', '#000000', '#2196F3', '#FF5252'];
-  } else if (p.categoria === 'Pádel' && p.nombre.toLowerCase().includes('pala')) {
+  } else if (p.categoria === 'Pádel' && String(p.nombre).toLowerCase().includes('pala')) {
     coloresArr = ['#000000', '#FFD700', '#FF5252'];
-  } else if (p.categoria === 'Tenis' && p.nombre.toLowerCase().includes('raqueta')) {
+  } else if (p.categoria === 'Tenis' && String(p.nombre).toLowerCase().includes('raqueta')) {
     tallas = ['L2', 'L3', 'L4'];
   }
 
   return {
     ...p,
     id: p.id.toString(),
-    precio: parseFloat(p.precio) || 0,
+    precio: parseFloat(String(p.precio)) || 0,
     categoria: p.categoria || 'Otros',
-    stock: p.stock > 0,
-    stockNum: parseInt(p.stock) || 0,
+    stock: Number(p.stock) > 0,
+    stockNum: parseInt(String(p.stock)) || 0,
     imagen: p.imagen || DEFAULT_IMAGE,
     tallas,
     colores: coloresArr,
@@ -33,12 +34,12 @@ const mapearProducto = (p: any) => {
 };
 
 export const useProductosViewModel = () => {
-  const [productos, setProductos] = useState<any[]>([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todos');
-  const [carrito, setCarrito] = useState<any[]>([]);
+  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [favoritoIds, setFavoritoIds] = useState<string[]>([]);
   const [paginaActual, setPaginaActual] = useState(1);
   const service = new ProductosService();
@@ -54,8 +55,8 @@ export const useProductosViewModel = () => {
         service.fetchProductos(),
         usuario ? getFavoritosAPI(usuario.id).catch(() => []) : Promise.resolve([]),
       ]);
-      setProductos(data.map(mapearProducto));
-      const ids = (favs as any[]).map((p: any) => p.id.toString());
+      setProductos((data as ProductoRaw[]).map(mapearProducto));
+      const ids = (favs as Producto[]).map(p => p.id.toString());
       setFavoritoIds(ids);
       await AsyncStorage.setItem('favoritos', JSON.stringify(ids));
     } catch (e) {
@@ -75,7 +76,6 @@ export const useProductosViewModel = () => {
     });
   }, [productos, busqueda, categoriaSeleccionada]);
 
-  // Resetear paginación cuando cambian los filtros
   useEffect(() => { setPaginaActual(1); }, [busqueda, categoriaSeleccionada]);
 
   const productosVisibles = useMemo(
@@ -90,12 +90,12 @@ export const useProductosViewModel = () => {
   }, [hayMas]);
 
   const totalCarrito = useMemo(
-    () => carrito.reduce((sum: number, item: any) => sum + item.precio, 0),
+    () => carrito.reduce((sum, item) => sum + item.precio, 0),
     [carrito]
   );
 
-  const agregarAlCarrito = (producto: any, talla?: string, color?: string) => {
-    const nuevoItem = {
+  const agregarAlCarrito = (producto: Producto, talla?: string, color?: string) => {
+    const nuevoItem: ItemCarrito = {
       ...producto,
       tallaSeleccionada: talla,
       colorSeleccionado: color,
@@ -105,7 +105,7 @@ export const useProductosViewModel = () => {
   };
 
   const quitarDelCarrito = (idUnico: string) => {
-    setCarrito(prev => prev.filter((item: any) => item.idUnicoCarrito !== idUnico));
+    setCarrito(prev => prev.filter(item => item.idUnicoCarrito !== idUnico));
   };
 
   const toggleFavorito = async (productoId: string) => {

@@ -20,19 +20,7 @@ import { useInstalacionesViewModel, FILTROS_DEPORTE } from '../viewmodels/Instal
 import { useValoracionesInstalacionViewModel } from '../viewmodels/ValoracionesInstalacionViewModel';
 import { getImagenInstalacion, DEFAULT_IMAGE } from '../utils/imagenesInstalaciones';
 import { useToast } from '../contexto/ToastContext';
-
-export interface Instalacion {
-  id: string | number;
-  nombre: string;
-  latitud: number;
-  longitud: number;
-  direccion: string;
-  deportes: string[] | string;
-  horario: string;
-  puntuacion: string;
-  web: string;
-  imagen: string;
-}
+import { Instalacion } from '../tipos/DatosInstalaciones';
 
 export default function PantallaInstalaciones({ navigation }: any) {
   const { colores } = useTema();

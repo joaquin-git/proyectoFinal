@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Platform, Linking, Alert } from 'react-native';
 import { InstalacionesService } from '../services/InstalacionesService';
+import { Instalacion } from '../tipos/DatosInstalaciones';
 
 const DEPORTES_PERMITIDOS = ['Fútbol 7', 'Fútbol Sala', 'Pádel', 'Tenis'];
 const POR_PAGINA = 6;
@@ -8,7 +9,7 @@ const POR_PAGINA = 6;
 export const FILTROS_DEPORTE = ['Todos', ...DEPORTES_PERMITIDOS];
 
 export const useInstalacionesViewModel = () => {
-  const [instalaciones, setInstalaciones] = useState<any[]>([]);
+  const [instalaciones, setInstalaciones] = useState<Instalacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busqueda, setBusqueda] = useState('');
@@ -31,14 +32,18 @@ export const useInstalacionesViewModel = () => {
 
   useEffect(() => { load(); }, []);
 
+  const parsearDeportes = (deportes: string | string[]): string[] => {
+    const arr = typeof deportes === 'string' ? JSON.parse(deportes) : deportes;
+    return (arr as string[]).filter(d => DEPORTES_PERMITIDOS.includes(d));
+  };
+
   const datosFiltrados = useMemo(() => {
-    return instalaciones.filter((item: any) => {
-      const deportesArr = (typeof item.deportes === 'string' ? JSON.parse(item.deportes) : item.deportes)
-        .filter((d: string) => DEPORTES_PERMITIDOS.includes(d));
+    return instalaciones.filter((item: Instalacion) => {
+      const deportesArr = parsearDeportes(item.deportes);
       const coincideDeporte = deporteSeleccionado === 'Todos' || deportesArr.includes(deporteSeleccionado);
       const coincideBusqueda = busqueda === '' ||
         item.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        deportesArr.some((d: string) => d.toLowerCase().includes(busqueda.toLowerCase()));
+        deportesArr.some(d => d.toLowerCase().includes(busqueda.toLowerCase()));
       return coincideDeporte && coincideBusqueda;
     });
   }, [instalaciones, busqueda, deporteSeleccionado]);
@@ -64,11 +69,6 @@ export const useInstalacionesViewModel = () => {
       android: `${scheme}${latLng}(${nombre})`,
     });
     Linking.openURL(url || '').catch(() => Alert.alert('Error', 'No se pudo abrir el mapa'));
-  };
-
-  const parsearDeportes = (deportes: any): string[] => {
-    const arr = typeof deportes === 'string' ? JSON.parse(deportes) : deportes;
-    return arr.filter((d: string) => DEPORTES_PERMITIDOS.includes(d));
   };
 
   return {
