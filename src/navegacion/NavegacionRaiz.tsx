@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import NavegacionAuth from './NavegacionAuth';
@@ -7,6 +8,7 @@ import NavegacionAdmin from './NavegacionAdmin';
 import { temaClaro, temaOscuro, NombreTema } from '../estilos/tema';
 import { ReservasProvider } from '../contexto/ReservasContext';
 import { ToastProvider } from '../contexto/ToastContext';
+import BannerSinConexion from '../componentes/BannerSinConexion';
 
 export const TemaContext = React.createContext<{
 	nombreTema: NombreTema;
@@ -46,23 +48,26 @@ export default function NavegacionRaiz() {
 		<TemaContext.Provider value={contexto}>
 			<ToastProvider>
 			<ReservasProvider>
-				<NavigationContainer>
-					<Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 250 }}>
-						{estaAutenticado ? (
-							usuarioRol === 'admin' ? (
-								<Stack.Screen name="Admin" component={NavegacionAdmin} />
+				<View style={{ flex: 1 }}>
+					<NavigationContainer>
+						<Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 250 }}>
+							{estaAutenticado ? (
+								usuarioRol === 'admin' ? (
+									<Stack.Screen name="Admin" component={NavegacionAdmin} />
+								) : (
+									<Stack.Screen name="App" component={NavegacionApp} />
+								)
 							) : (
-								<Stack.Screen name="App" component={NavegacionApp} />
-							)
-						) : (
-							<Stack.Screen name="Auth">
-								{(props) => (
-									<NavegacionAuth {...props} setEstaAutenticado={setEstaAutenticado} />
-								)}
-							</Stack.Screen>
-						)}
-					</Stack.Navigator>
-				</NavigationContainer>
+								<Stack.Screen name="Auth">
+									{(props) => (
+										<NavegacionAuth {...props} setEstaAutenticado={setEstaAutenticado} />
+									)}
+								</Stack.Screen>
+							)}
+						</Stack.Navigator>
+					</NavigationContainer>
+					<BannerSinConexion />
+				</View>
 			</ReservasProvider>
 			</ToastProvider>
 		</TemaContext.Provider>
