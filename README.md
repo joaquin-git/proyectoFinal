@@ -82,7 +82,7 @@ SportSpace es una aplicación desarrollada con React Native y Expo que conecta c
 - Todos los mensajes de validación en español
 - Mensaje de error legible si MySQL no está en ejecución al arrancar el backend
 - Paginación client-side con botón "Ver más" y contador de items restantes
-- Suite de tests unitarios con Jest y React Native Testing Library (81 tests, 6 suites)
+- Suite de tests unitarios con Jest y React Native Testing Library (103 tests, 9 suites)
 
 ---
 
@@ -253,8 +253,11 @@ npm run test:coverage
 | `LoginViewModel.test.ts` | 9 | Validación de campos, login exitoso (loading, onAuthenticated, cargarReservas) y login fallido |
 | `PerfilViewModel.test.ts` | 8 | Función pura `esReservaPasada` y separación de reservas activas/pasadas en el hook |
 | `AjustesPerfilViewModel.test.ts` | 9 | Carga de datos, validación de email/contraseña y guardado con persistencia en AsyncStorage |
+| `RegistroViewModel.test.ts` | 8 | Validación de todos los campos del formulario, registro exitoso y manejo de errores del servicio |
+| `PagoViewModel.test.ts` | 9 | Validación de tarjeta y Bizum, flujo de pago de carrito con timer y pago de reserva |
+| `MisComprasViewModel.test.ts` | 5 | Carga de compras al montar, procesado de devolución y actualización de estado |
 
-**Total: 81 tests — 6 suites**
+**Total: 103 tests — 9 suites**
 
 ---
 
