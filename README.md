@@ -1,5 +1,7 @@
 # SportSpace
 
+![CI](https://github.com/joaquin-git/proyectoFinal/actions/workflows/ci.yml/badge.svg)
+
 Aplicación móvil para la gestión de un complejo deportivo. Permite a los usuarios consultar instalaciones, reservar pistas, comprar productos y gestionar su perfil. Incluye un panel de administración para gestionar usuarios, productos e instalaciones desde la propia app.
 
 ---
