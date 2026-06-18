@@ -2,7 +2,23 @@
 
 ![CI](https://github.com/joaquin-git/proyectoFinal/actions/workflows/ci.yml/badge.svg)
 
-Aplicación móvil para la gestión de un complejo deportivo. Permite a los usuarios consultar instalaciones, reservar pistas, comprar productos y gestionar su perfil. Incluye un panel de administración para gestionar usuarios, productos e instalaciones desde la propia app.
+Aplicación móvil para la gestión de un complejo deportivo.
+
+---
+
+## Capturas de pantalla
+
+<p align="center">
+  <img src="assets/screenshots/onboarding.jpeg" width="18%" alt="Onboarding" />
+  <img src="assets/screenshots/login.jpeg" width="18%" alt="Login" />
+  <img src="assets/screenshots/menu.jpeg" width="18%" alt="Menú" />
+  <img src="assets/screenshots/tienda.jpeg" width="18%" alt="Tienda" />
+  <img src="assets/screenshots/reserva.jpeg" width="18%" alt="Reserva" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/perfil.jpeg" width="18%" alt="Perfil" />
+  <img src="assets/screenshots/admin.jpeg" width="18%" alt="Admin" />
+</p> Permite a los usuarios consultar instalaciones, reservar pistas, comprar productos y gestionar su perfil. Incluye un panel de administración para gestionar usuarios, productos e instalaciones desde la propia app.
 
 ---
 
